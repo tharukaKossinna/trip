@@ -976,6 +976,13 @@ function viewItinerary(){
       h("button", {type:"button", class:"btn primary", onclick:() => needMe(() => openAct(null, ""))}, icon("plus"), "Add activity")));
     return sec;
   }
+  // Undated ideas sit at the top so they stay in sight; the day-by-day itinerary follows.
+  if (!S.day){
+    const g = h("div", {class:"dg"}, groupHead("No date yet", "Ideas to slot in", ""));
+    if (undated.length) undated.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach(a => g.append(actTicket(a)));
+    else g.append(h("div", {class:"free"}, h("span", null, "Ideas without a date land here.")));
+    list.append(g);
+  }
   let keys;
   if (S.day) keys = [S.day];
   else { const set = new Set(days || []); for (const k of byDay.keys()) set.add(k); keys = [...set].sort(); }
@@ -988,12 +995,6 @@ function viewItinerary(){
     if (items.length) items.forEach(a => g.append(actTicket(a)));
     else g.append(h("div", {class:"free"}, h("span", null, S.person ? `Nothing added by ${nameOf(S.person)}` : "Free day so far"),
       !S.person ? h("button", {type:"button", class:"btn small", onclick:() => needMe(() => openAct(null, k))}, "Plan something") : null));
-    list.append(g);
-  }
-  if (!S.day){
-    const g = h("div", {class:"dg"}, groupHead("No date yet", "Ideas to slot in", ""));
-    if (undated.length) undated.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach(a => g.append(actTicket(a)));
-    else g.append(h("div", {class:"free"}, h("span", null, "Ideas without a date land here.")));
     list.append(g);
   }
   return sec;
