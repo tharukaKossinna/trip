@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trip Board</title>
+<meta name="description" content="Our shared group trip planner: calendar, activities, accommodation and expenses.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700;800&display=swap">
+<style>
+/* Layout: boarding-pass header band → sticky bar with tabs (Plan / Stays / Money) → tab content */
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --sunk:#E3E7EE; --ink:#111A2B; --muted:#586377; --line:#D3D9E3;
+  --accent:#2142D4; --accent-ink:#FFFFFF; --mark:#FFD84A; --mark-ink:#111A2B;
+  --band-bg:#111A2B; --band-ink:#F2F5FA; --band-muted:#9EA9BD; --band-line:#33405A;
+  --ok:#11734A; --ok-bg:#DCF2E7; --danger:#B42318; --danger-bg:#FDE7E5; --on-person:#FFFFFF;
+  --display:"Big Shoulders Display","Big Shoulders","Arial Narrow","Roboto Condensed",Impact,sans-serif;
+  --body:"Figtree",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1019; --surface:#141B27; --sunk:#1A2230; --ink:#E8ECF3; --muted:#9AA5B8; --line:#283245;
+  --accent:#8399FF; --accent-ink:#0B1019; --mark:#FFD84A; --mark-ink:#111A2B;
+  --band-bg:#172036; --band-ink:#E8ECF3; --band-muted:#97A3B8; --band-line:#2F3B55;
+  --ok:#62D49E; --ok-bg:#16382A; --danger:#FF8F85; --danger-bg:#3A1C1A; --on-person:#FFFFFF;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1019; --surface:#141B27; --sunk:#1A2230; --ink:#E8ECF3; --muted:#9AA5B8; --line:#283245;
+  --accent:#8399FF; --accent-ink:#0B1019; --mark:#FFD84A; --mark-ink:#111A2B;
+  --band-bg:#172036; --band-ink:#E8ECF3; --band-muted:#97A3B8; --band-line:#2F3B55;
+  --ok:#62D49E; --ok-bg:#16382A; --danger:#FF8F85; --danger-bg:#3A1C1A; --on-person:#FFFFFF;
+  color-scheme:dark}
+
+*,*::before,*::after{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+h1,h2,h3,h4,p{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+a{color:var(--accent)}
+:where(button,a,input,select,textarea):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.wrap{max-width:1240px;margin-inline:auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+@media (min-width:760px){.wrap{padding-left:max(32px, env(safe-area-inset-left, 0px));padding-right:max(32px, env(safe-area-inset-right, 0px))}}
+
+/* Pass header */
+.band{background:var(--band-bg);color:var(--band-ink)}
+.pass{padding-block:28px 26px;display:grid;gap:22px}
+.pass-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px}
+.pass-title{min-width:0}
+.pass-actions{display:flex;flex-wrap:wrap;gap:8px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--band-muted)}
+.trip-name{font-family:var(--display);font-weight:800;font-size:clamp(46px,8.5vw,96px);line-height:.88;text-transform:uppercase;letter-spacing:.005em;margin-top:8px;text-wrap:balance;overflow-wrap:anywhere}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));border-top:1px dashed var(--band-line)}
+.field{padding:14px 16px 0 0;min-width:0}
+.field .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--band-muted)}
+.field .v{font-family:var(--display);font-weight:700;font-size:27px;line-height:1.1;margin-top:3px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.field .v.mark{color:var(--mark)}
+.field .s{font-size:12.5px;color:var(--band-muted)}
+.travellers{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.travellers .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--band-muted);margin-right:4px}
+.tr{display:inline-flex;align-items:center;gap:7px;padding:3px 11px 3px 3px;border:1px solid var(--band-line);border-radius:999px;font-size:13px;max-width:100%;background:transparent;color:var(--band-ink);cursor:pointer}
+.tr:hover{border-color:var(--band-muted)}
+.tr span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr.add{padding:5px 12px;color:var(--band-muted);border-style:dashed}
+.tr-none{font-size:13px;color:var(--band-muted)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px/1.1 var(--body);cursor:pointer;white-space:nowrap;text-decoration:none;transition:background .15s,border-color .15s,filter .15s}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{min-height:32px;padding:5px 12px;font-size:13px}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.quiet:hover{color:var(--ink);border-color:var(--line)}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:var(--surface)}
+.btn.on-band{background:transparent;color:var(--band-ink);border-color:var(--band-line)}
+.btn.on-band:hover{border-color:var(--band-muted)}
+.btn.on-band.fill{background:var(--mark);color:var(--mark-ink);border-color:var(--mark)}
+.btn[disabled]{opacity:.55;cursor:progress}
+.btn svg{flex:none}
+
+/* Sticky bar + tabs */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar-in{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:62px;padding-block:10px}
+.me-btn{display:inline-flex;align-items:center;gap:8px;padding:3px 12px 3px 3px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;min-width:0;max-width:100%}
+.me-btn:hover{border-color:var(--muted)}
+.me-btn .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:14ch}
+.me-btn .ed{font-size:12px;color:var(--muted)}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tabs{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--sunk);border:1px solid var(--line)}
+.tab{border:0;background:transparent;padding:7px 16px;border-radius:999px;font:600 14px/1 var(--body);color:var(--muted);cursor:pointer;min-height:34px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(5 8 15 / .14)}
+@media (max-width:700px){
+  .bar-in{flex-wrap:wrap;padding-block:8px}
+  .tabs{order:3;width:100%}
+  .tab{flex:1}
+}
+
+/* Avatars */
+.av{--c:#64748B;width:24px;height:24px;border-radius:50%;background:var(--c);color:var(--on-person);font:700 10px/24px var(--body);text-align:center;flex:none;letter-spacing:.02em;display:inline-block}
+.av.lg{width:30px;height:30px;line-height:30px;font-size:12px}
+.stack{display:inline-flex;align-items:center}
+.stack .av{box-shadow:0 0 0 2px var(--surface)}
+.stack .av+.av{margin-left:-6px}
+
+/* Page */
+.page{padding-block:24px 80px;display:grid;gap:26px}
+.notice{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 16px;font-size:14px;color:var(--muted)}
+.notice b{color:var(--ink)}
+.notice.demo{border-color:var(--mark);background:color-mix(in srgb,var(--mark) 14%,var(--surface))}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-bottom:12px}
+.sec-head h2{font-family:var(--display);font-weight:800;font-size:30px;line-height:1;text-transform:uppercase;letter-spacing:.01em}
+.sec-head .sub{font-size:13px;color:var(--muted)}
+.list-sec{scroll-margin-top:calc(env(safe-area-inset-top,0px) + 110px)}
+.plan{display:grid;gap:26px}
+@media (min-width:1080px){
+  .plan{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:36px;align-items:start}
+  .plan>.full{grid-column:1/-1}
+  .cal-sec.stick{position:sticky;top:calc(env(safe-area-inset-top,0px) + 80px)}
+}
+
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.filters .tag{margin-right:4px}
+.fchip{--c:var(--muted);display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:4px 12px 4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:500;cursor:pointer;max-width:100%}
+.fchip .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.fchip span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fchip:hover{border-color:var(--muted)}
+
+/* Calendar */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cal-head,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-head div{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:9px 8px;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+.cal-head div:nth-child(7n){border-right:0}
+.day{min-height:120px;min-width:0;padding:7px;display:flex;flex-direction:column;align-items:stretch;gap:5px;text-align:left;background:var(--surface);border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;cursor:pointer;transition:background .12s}
+.day:nth-child(7n){border-right:0}
+.day.last{border-bottom:0}
+button.day:hover{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.day.out{background:var(--sunk);cursor:default;color:var(--muted)}
+.day[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.dtop{display:flex;align-items:baseline;gap:5px;min-width:0}
+.dnum{font-family:var(--display);font-weight:700;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.day.today .dnum{background:var(--mark);color:var(--mark-ink);border-radius:4px;padding:1px 4px 0}
+.dmon{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.dlab{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.stayband{display:block;font-family:var(--mono);font-size:10.5px;line-height:1.2;padding:3px 5px;border-radius:4px;background:var(--sunk);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;flex-direction:column;gap:3px;min-width:0}
+.chip{--c:#64748B;display:block;font-size:12px;line-height:1.3;padding:3px 6px;border-radius:5px;background:color-mix(in srgb,var(--c) 17%,var(--surface));color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip b{font-family:var(--mono);font-weight:500;font-size:11px;margin-right:4px}
+.more{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.dots{display:none;flex-wrap:wrap;gap:3px;align-items:center}
+.dots i{--c:#64748B;width:8px;height:8px;border-radius:50%;background:var(--c);display:block}
+.hint{font-size:12.5px;color:var(--muted);margin-top:8px}
+@media (max-width:640px){
+  .day{min-height:68px;padding:5px 4px;gap:4px}
+  .dnum{font-size:18px}
+  .dlab,.chips,.dmon{display:none}
+  .stayband{font-size:0;padding:0;height:4px;border-radius:2px;background:var(--muted);opacity:.45}
+  .dots{display:flex}
+  .cal-head div{padding:7px 4px;font-size:9.5px;letter-spacing:.06em}
+}
+
+/* Empty / boxes */
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:26px 22px;display:grid;gap:8px;justify-items:start;background:var(--surface)}
+.empty .ttl{font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase}
+.empty p{color:var(--muted);max-width:56ch}
+.loading{color:var(--muted);font-size:14px;padding:12px 0}
+
+/* Itinerary */
+.list{display:grid;gap:26px}
+.dg{display:grid;gap:10px}
+.dg-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.dg-t{display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap;min-width:0}
+.dg-title{font-family:var(--display);font-weight:700;font-size:23px;line-height:1;text-transform:uppercase;letter-spacing:.01em}
+.dg-sub{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.free{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px dashed var(--line);border-radius:var(--r);padding:10px 14px;color:var(--muted);font-size:14px}
+
+.ticket{--c:#64748B;position:relative;display:grid;grid-template-columns:92px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ticket::before,.ticket::after{content:"";position:absolute;left:83px;width:14px;height:14px;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.ticket::before{top:-8px}
+.ticket::after{bottom:-8px}
+.stub{padding:14px 10px 14px 13px;border-right:2px dashed var(--line);background:color-mix(in srgb,var(--c) 11%,var(--surface));display:flex;flex-direction:column;gap:1px;font-family:var(--mono);min-width:0}
+.stub .t1{font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+.stub .t1.any{font-size:12.5px;color:var(--muted)}
+.stub .t2{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stub .big{font-family:var(--display);font-weight:800;font-size:34px;line-height:.95}
+.stub .cat{margin-top:auto;padding-top:10px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);overflow-wrap:anywhere}
+.tb{padding:12px 14px;display:grid;gap:6px;min-width:0}
+.t-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px 14px;flex-wrap:wrap}
+.t-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.t-title{font-size:17px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.pill{font:500 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:4px 7px;border-radius:4px;border:1px dashed var(--line);color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.pill.booked{border:1px solid transparent;background:var(--ok-bg);color:var(--ok)}
+.cost{font-family:var(--mono);font-size:14px;font-weight:500;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cost small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.t-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px;color:var(--muted)}
+.t-meta a{display:inline-flex;align-items:center;gap:4px;text-decoration:none;color:var(--accent);overflow-wrap:anywhere}
+.t-meta a:hover{text-decoration:underline}
+.t-notes{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+.t-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:4px;padding-top:9px;border-top:1px solid var(--line)}
+.by{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);min-width:0}
+.by b{color:var(--ink);font-weight:600}
+.going{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
+.paidnote{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ok);font-weight:600}
+.t-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.inbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.confirm{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;font-size:13.5px;background:var(--danger-bg);border-radius:8px;padding:8px 10px}
+.confirm span{margin-right:auto;color:var(--ink)}
+@media (max-width:520px){
+  .ticket{grid-template-columns:76px minmax(0,1fr)}
+  .ticket::before,.ticket::after{left:67px}
+  .stub{padding:12px 8px 12px 10px}
+  .stub .big{font-size:28px}
+  .t-actions{margin-left:0}
+}
+
+/* Stays */
+.stays{display:grid;gap:14px}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 14px;font-size:14px;margin:2px 0}
+.kv dt{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.ref{font-family:var(--mono);font-weight:500;user-select:all;background:var(--sunk);padding:1px 6px;border-radius:4px}
+.copy{border:0;background:transparent;color:var(--accent);font:600 12.5px var(--body);cursor:pointer;padding:2px 6px;margin-left:4px}
+.gap-note{border:1px solid var(--line);border-left-width:1px;background:var(--surface);border-radius:var(--r);padding:12px 16px;font-size:14px}
+.gap-note b{display:block;margin-bottom:2px}
+.gap-note span{color:var(--muted)}
+
+/* Money */
+.money{display:grid;gap:26px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;min-width:0}
+.tile .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .v.pos{color:var(--ok)} .tile .v.neg{color:var(--danger)}
+.tile .s{font-size:12.5px;color:var(--muted)}
+.money-cols{display:grid;gap:26px}
+@media (min-width:1000px){.money-cols{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start;column-gap:36px}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bal{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center}
+.bal:last-child{border-bottom:0}
+.bal .who{display:flex;align-items:center;gap:9px;min-width:0}
+.bal .who b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bal .sub{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.bal .amt{font-family:var(--mono);font-weight:500;font-size:14.5px;text-align:right;font-variant-numeric:tabular-nums}
+.bal .amt small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.bal .amt.pos{color:var(--ok)} .bal .amt.neg{color:var(--danger)}
+.dbar{grid-column:1/-1;position:relative;height:6px;border-radius:3px;background:var(--sunk);margin-top:2px}
+.dbar::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line)}
+.dbar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.dbar i.pos{left:50%;background:var(--ok)}
+.dbar i.neg{right:50%;background:var(--danger)}
+.settle{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14px}
+.settle:last-child{border-bottom:0}
+.settle .flow{display:flex;align-items:center;gap:7px;min-width:0;flex:1}
+.settle .flow b{font-weight:600}
+.settle .amt{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.allsquare{padding:16px;color:var(--muted);font-size:14px}
+.exp{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:4px 14px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:start}
+.exp:last-child{border-bottom:0}
+.exp .d{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px;line-height:1.3}
+.exp .t{font-weight:600;overflow-wrap:anywhere}
+.exp .m{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center}
+.exp .a{font-family:var(--mono);font-weight:500;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.exp .a small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.exp .acts{grid-column:2/-1;display:flex;gap:4px;flex-wrap:wrap}
+.exp.transfer{background:color-mix(in srgb,var(--ok) 5%,var(--surface))}
+.exp .confirm{grid-column:1/-1}
+@media (max-width:520px){.exp{grid-template-columns:minmax(0,1fr) auto}.exp .d{grid-column:1/-1;padding:0}.exp .acts{grid-column:1/-1}}
+
+/* Landing */
+.landing{display:grid;gap:16px;max-width:640px;padding-block:32px 80px}
+.steps{margin:0;padding-left:20px;display:grid;gap:6px;color:var(--ink)}
+.steps li::marker{font-family:var(--mono);color:var(--muted)}
+
+/* Dialogs */
+dialog{border:0;padding:0;border-radius:14px;background:var(--surface);color:var(--ink);width:min(580px,calc(100vw - 24px));max-height:calc(100dvh - 24px);box-shadow:0 24px 70px rgb(5 8 15 / .35)}
+dialog::backdrop{background:rgb(8 12 20 / .55)}
+.form{display:grid;gap:14px;padding:20px 20px 18px}
+.f-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.f-head h2{font-family:var(--display);font-weight:800;font-size:28px;line-height:1;text-transform:uppercase}
+.x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:20px;line-height:1;color:var(--muted);flex:none}
+.x:hover{color:var(--ink);border-color:var(--muted)}
+.f-intro{font-size:14px;color:var(--muted)}
+.f{display:grid;gap:5px;font-size:13px;font-weight:600;min-width:0}
+.f .opt{font-weight:400;color:var(--muted)}
+.f input,.f select,.f textarea{font:400 15px/1.35 var(--body);padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.f textarea{resize:vertical;min-height:76px}
+.f input:focus,.f select:focus,.f textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px}
+@media (max-width:480px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.f-err{color:var(--danger);font-size:13.5px;font-weight:600}
+.f-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding-top:4px}
+.f-by{margin-right:auto;display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+legend{font-size:13px;font-weight:600;margin-bottom:6px;padding:0;display:flex;align-items:center;gap:8px;width:100%}
+legend .lnk{margin-left:auto;font-weight:500;font-size:12.5px}
+.lnk{border:0;background:transparent;color:var(--accent);cursor:pointer;padding:2px 4px;font:inherit}
+.people{display:flex;flex-wrap:wrap;gap:8px}
+.pcheck{position:relative;display:inline-flex}
+.pcheck input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pcheck span{display:inline-flex;align-items:center;gap:7px;padding:4px 12px 4px 4px;border-radius:999px;border:1px solid var(--line);font-size:13.5px;font-weight:500;background:var(--bg)}
+.pcheck input:checked+span{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pcheck input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.split-note{font-size:12.5px;color:var(--muted);font-family:var(--mono);margin-top:6px}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.sw{position:relative}
+.sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.sw span{display:block;width:34px;height:34px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px var(--surface),0 0 0 3px transparent}
+.sw input:checked+span{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--ink)}
+.sw input:focus-visible+span{outline:2px solid var(--accent);outline-offset:4px}
+.who-list{display:grid;gap:8px}
+.who-item{display:flex;align-items:center;gap:10px;padding:8px 12px 8px 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer;text-align:left;font-weight:600}
+.who-item:hover{border-color:var(--muted)}
+.who-item .cur{margin-left:auto;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.linkbox{display:flex;gap:8px}
+.linkbox input{flex:1;min-width:0;font:400 13.5px var(--mono);padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:min(92vw,460px);z-index:20;opacity:0;transition:opacity .2s,transform .2s;box-shadow:0 10px 30px rgb(5 8 15 / .25)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<div class="band"><header class="wrap pass" id="pass"></header></div>
+<div class="bar" id="bar-wrap"><div class="wrap bar-in" id="bar"></div></div>
+<main class="wrap" id="main">
+  <div class="page" id="page"></div>
+</main>
+
+<!-- Activity -->
+<dialog id="dlg-act" aria-labelledby="act-h">
+  <form id="f-act" class="form" novalidate>
+    <div class="f-head"><h2 id="act-h">Add an activity</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <label class="f" for="a-title">Activity name
+      <input id="a-title" maxlength="120" autocomplete="off" placeholder="e.g. Sunset snorkel tour">
+    </label>
+    <div class="grid3">
+      <label class="f" for="a-date">Date <span class="opt">Blank if unsure</span><input id="a-date" type="date"></label>
+      <label class="f" for="a-start">Start <span class="opt">Optional</span><input id="a-start" type="time"></label>
+      <label class="f" for="a-end">Finish <span class="opt">Optional</span><input id="a-end" type="time"></label>
+    </div>
+    <label class="f" for="a-loc">Location <span class="opt">Venue, address or meeting point</span>
+      <input id="a-loc" maxlength="200" autocomplete="off">
+    </label>
+    <div class="grid2">
+      <label class="f" for="a-cost">Cost <span class="opt">Blank if unknown, 0 if free</span><input id="a-cost" type="number" inputmode="decimal" min="0" step="0.01"></label>
+      <label class="f" for="a-basis">Cost is<select id="a-basis"><option value="pp">Per person</option><option value="group">Total for the group</option></select></label>
+    </div>
+    <div class="grid2">
+      <label class="f" for="a-cat">Type<select id="a-cat"></select></label>
+      <label class="f" for="a-status">Status<select id="a-status"><option value="idea">Idea</option><option value="booked">Booked</option></select></label>
+    </div>
+    <label class="f" for="a-link">Booking or info link <span class="opt">Optional</span><input id="a-link" type="url" inputmode="url" maxlength="500" placeholder="https://"></label>
+    <label class="f" for="a-notes">Notes <span class="opt">What to bring, who's booking, dress code</span><textarea id="a-notes" maxlength="1500" rows="3"></textarea></label>
+    <p class="f-err" id="a-err" hidden></p>
+    <div class="f-actions"><span class="f-by" id="a-by"></span><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="a-save">Add activity</button></div>
+  </form>
+</dialog>
+
+<!-- Stay -->
+<dialog id="dlg-stay" aria-labelledby="stay-h">
+  <form id="f-stay" class="form" novalidate>
+    <div class="f-head"><h2 id="stay-h">Add accommodation</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <label class="f" for="s-name">Where you're staying
+      <input id="s-name" maxlength="120" autocomplete="off" placeholder="e.g. Villa Kayu, or Airbnb in Seminyak">
+    </label>
+    <label class="f" for="s-addr">Address <span class="opt">Opens in Google Maps</span><input id="s-addr" maxlength="250" autocomplete="off"></label>
+    <div class="grid2">
+      <label class="f" for="s-in">Check-in date<input id="s-in" type="date"></label>
+      <label class="f" for="s-intime">Check-in time <span class="opt">Optional</span><input id="s-intime" type="time"></label>
+    </div>
+    <div class="grid2">
+      <label class="f" for="s-out">Check-out date<input id="s-out" type="date"></label>
+      <label class="f" for="s-outtime">Check-out time <span class="opt">Optional</span><input id="s-outtime" type="time"></label>
+    </div>
+    <div class="grid2">
+      <label class="f" for="s-ref">Booking reference <span class="opt">Optional</span><input id="s-ref" maxlength="60" autocomplete="off"></label>
+      <label class="f" for="s-phone">Host or front desk phone <span class="opt">Optional</span><input id="s-phone" type="tel" maxlength="40" autocomplete="off"></label>
+    </div>
+    <fieldset id="s-who"></fieldset>
+    <label class="f" for="s-link">Booking link <span class="opt">Optional</span><input id="s-link" type="url" inputmode="url" maxlength="500" placeholder="https://"></label>
+    <label class="f" for="s-notes">Notes <span class="opt">Rooms, parking, key pickup, wifi</span><textarea id="s-notes" maxlength="1500" rows="3"></textarea></label>
+    <p class="f-intro">Anyone with the trip link can see these details, so leave out passport numbers and card details.</p>
+    <p class="f-err" id="s-err" hidden></p>
+    <div class="f-actions"><span class="f-by" id="s-by"></span><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="s-save">Add stay</button></div>
+  </form>
+</dialog>
+
+<!-- Expense -->
+<dialog id="dlg-exp" aria-labelledby="exp-h">
+  <form id="f-exp" class="form" novalidate>
+    <div class="f-head"><h2 id="exp-h">Add an expense</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <label class="f" for="e-title" id="e-title-wrap">What was it for?
+      <input id="e-title" maxlength="120" autocomplete="off" placeholder="e.g. Villa deposit, Friday dinner">
+    </label>
+    <div class="grid2">
+      <label class="f" for="e-amount">Amount <span class="opt" id="e-cur">AUD</span><input id="e-amount" type="number" inputmode="decimal" min="0" step="0.01"></label>
+      <label class="f" for="e-date">Date<input id="e-date" type="date"></label>
+    </div>
+    <div class="grid2">
+      <label class="f" for="e-paid" id="e-paid-l">Paid by<select id="e-paid"></select></label>
+      <label class="f" for="e-cat" id="e-cat-wrap">Type<select id="e-cat"></select></label>
+    </div>
+    <fieldset id="e-split"></fieldset>
+    <label class="f" for="e-act" id="e-act-wrap">For an activity or stay <span class="opt">Optional</span><select id="e-act"></select></label>
+    <label class="f" for="e-notes">Notes <span class="opt">Optional</span><textarea id="e-notes" maxlength="1000" rows="2"></textarea></label>
+    <p class="f-err" id="e-err" hidden></p>
+    <div class="f-actions"><span class="f-by" id="e-by"></span><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="e-save">Add expense</button></div>
+  </form>
+</dialog>
+
+<!-- Trip -->
+<dialog id="dlg-trip" aria-labelledby="trip-h">
+  <form id="f-trip" class="form" novalidate>
+    <div class="f-head"><h2 id="trip-h">Trip details</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <p class="f-intro">Everyone sees these. The calendar shows each day from the first day to the last.</p>
+    <label class="f" for="t-name">Trip name<input id="t-name" maxlength="60" autocomplete="off" placeholder="e.g. Bali 2026"></label>
+    <label class="f" for="t-dest">Destination<input id="t-dest" maxlength="80" autocomplete="off" placeholder="e.g. Canggu, Bali"></label>
+    <div class="grid2">
+      <label class="f" for="t-start">First day<input id="t-start" type="date"></label>
+      <label class="f" for="t-end">Last day<input id="t-end" type="date"></label>
+    </div>
+    <label class="f" for="t-cur">Currency for costs and expenses<select id="t-cur"></select></label>
+    <p class="f-err" id="t-err" hidden></p>
+    <div class="f-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="t-save">Save trip details</button></div>
+  </form>
+</dialog>
+
+<!-- Who are you -->
+<dialog id="dlg-who" aria-labelledby="who-h">
+  <div class="form">
+    <div class="f-head"><h2 id="who-h">Who are you?</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <p class="f-intro">Pick your name so the group can see what you add. This device remembers you.</p>
+    <div class="who-list" id="who-list"></div>
+    <div class="f-actions"><button type="button" class="btn primary" id="who-new">I'm not on the list</button></div>
+  </div>
+</dialog>
+
+<!-- Traveller -->
+<dialog id="dlg-member" aria-labelledby="mem-h">
+  <form id="f-mem" class="form" novalidate>
+    <div class="f-head"><h2 id="mem-h">Join the trip</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <p class="f-intro" id="m-intro"></p>
+    <label class="f" for="m-name">Name<input id="m-name" maxlength="30" autocomplete="off"></label>
+    <fieldset class="swatches-wrap"><legend>Colour</legend><div class="swatches" id="m-colors"></div></fieldset>
+    <div id="m-del"></div>
+    <p class="f-err" id="m-err" hidden></p>
+    <div class="f-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="m-save">Save</button></div>
+  </form>
+</dialog>
+
+<!-- Invite -->
+<dialog id="dlg-invite" aria-labelledby="inv-h">
+  <div class="form">
+    <div class="f-head"><h2 id="inv-h">Invite the group</h2><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <p class="f-intro">Send this link in your group chat. Anyone who has it can see and add to the plan, no account needed. Treat it like a private link.</p>
+    <div class="linkbox"><input id="inv-link" readonly aria-label="Trip link"><button type="button" class="btn primary" id="inv-copy">Copy</button></div>
+  </div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<noscript><p class="wrap">Trip Board needs JavaScript turned on.</p></noscript>
+
+<script type="module">
+/* ==========================================================================
+   1. PASTE YOUR FIREBASE CONFIG HERE (see README.md)
+   Firebase console → Project settings → Your apps → Web app → SDK setup → Config
+   ========================================================================== */
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBzZrfAhoogdoXlPUGrxWxuvT2e10UpZDk",
+  authDomain: "trip-planning-98147.firebaseapp.com",
+  projectId: "trip-planning-98147",
+  storageBucket: "trip-planning-98147.firebasestorage.app",
+  messagingSenderId: "384942452699",
+  appId: "1:384942452699:web:37c4cf8426dca659bac1fe"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+/* ========================================================================== */
+
+const FIREBASE_VERSION = "10.12.2";
+const PALETTE = ["#2142D4","#C2410C","#0F766E","#9333EA","#BE185D","#15803D","#A16207","#0369A1"];
+const CATS = [["activity","Activity"],["food","Food & drink"],["transport","Transport"],["stay","Accommodation"],["other","Other"]];
+const CATMAP = Object.fromEntries(CATS);
+const EXP_CATS = [["stay","Accommodation"],["food","Food & drink"],["activity","Activities"],["transport","Transport"],["groceries","Groceries"],["other","Other"]];
+const EXPMAP = Object.fromEntries(EXP_CATS);
+const CURRENCIES = ["AUD","NZD","USD","EUR","GBP","JPY","IDR","THB","SGD","VND","FJD","CAD","KRW","MYR","PHP"];
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAY = 864e5;
+const COLS = ["members","activities","stays","expenses"];
+const ICON = {
+  pin:'<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M8 1.5a4.75 4.75 0 0 0-4.75 4.75c0 3.4 4.06 7.7 4.23 7.88a.72.72 0 0 0 1.04 0c.17-.18 4.23-4.48 4.23-7.88A4.75 4.75 0 0 0 8 1.5Zm0 6.6a1.85 1.85 0 1 1 0-3.7 1.85 1.85 0 0 1 0 3.7Z"/></svg>',
+  out:'<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M6 3.5h6.5V10M12.5 3.5 4 12"/></svg>',
+  plus:'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 3v10M3 8h10"/></svg>',
+  check:'<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8.5l3 3 6-7"/></svg>',
+  arrow:'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 8h10M9 4l4 4-4 4"/></svg>'
+};
+
+const S = {
+  store:null, mode:"boot", tripId:null, demo:false, problem:"", me:null,
+  trip:null, members:new Map(), activities:new Map(), stays:new Map(), expenses:new Map(),
+  loaded:{trip:false, members:false, activities:false, stays:false, expenses:false},
+  tab:"plan", person:null, day:null, confirm:null, editing:null, afterJoin:null, askedWho:false, memberEdit:null
+};
+
+/* ---------- small helpers ---------- */
+const $ = id => document.getElementById(id);
+function h(tag, attrs, ...kids){
+  const el = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)){
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "c") el.style.setProperty("--c", v);
+    else if (k === "html") el.innerHTML = v; // static icon markup only
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : String(v));
+  }
+  for (const c of kids.flat(Infinity)){
+    if (c == null || c === false) continue;
+    el.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return el;
+}
+const icon = n => h("span", {html: ICON[n], style:"display:inline-flex"});
+const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e){ return null; } };
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
+
+/* ---------- dates & money ---------- */
+const pad = n => String(n).padStart(2, "0");
+function todayKey(){ const t = new Date(); return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`; }
+function pd(s){ const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m-1, d); }
+function validKey(s){ return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(pd(s)); }
+function key(ms){ const d = new Date(ms); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
+function dow(ms){ return new Date(ms).getUTCDay(); }
+function fmtDay(k){ const d = new Date(pd(k)); return `${WD[d.getUTCDay()]} ${d.getUTCDate()} ${MO[d.getUTCMonth()]}`; }
+function fmtShort(k){ const d = new Date(pd(k)); return `${d.getUTCDate()} ${MO[d.getUTCMonth()]}`; }
+function fmtRange(a, b){
+  const A = new Date(pd(a)), B = new Date(pd(b)), ay = A.getUTCFullYear(), by = B.getUTCFullYear();
+  if (a === b) return `${A.getUTCDate()} ${MO[A.getUTCMonth()]} ${ay}`;
+  if (ay !== by) return `${A.getUTCDate()} ${MO[A.getUTCMonth()]} ${ay} – ${B.getUTCDate()} ${MO[B.getUTCMonth()]} ${by}`;
+  if (A.getUTCMonth() === B.getUTCMonth()) return `${A.getUTCDate()}–${B.getUTCDate()} ${MO[B.getUTCMonth()]} ${by}`;
+  return `${A.getUTCDate()} ${MO[A.getUTCMonth()]} – ${B.getUTCDate()} ${MO[B.getUTCMonth()]} ${by}`;
+}
+function fmtTime(t){
+  if (!/^\d{2}:\d{2}$/.test(t || "")) return "";
+  let [H, M] = t.split(":").map(Number); const ap = H < 12 ? "am" : "pm"; H = H % 12 || 12;
+  return `${H}:${pad(M)}${ap}`;
+}
+function tripDays(){
+  const t = S.trip;
+  if (!t || !validKey(t.start) || !validKey(t.end)) return null;
+  const a = pd(t.start), b = pd(t.end); if (b < a) return null;
+  const out = []; for (let m = a; m <= b && out.length < 92; m += DAY) out.push(key(m));
+  return out;
+}
+function currency(){ const c = S.trip && S.trip.currency; return (typeof c === "string" && /^[A-Z]{3}$/.test(c)) ? c : "AUD"; }
+function money(n){
+  const cur = currency(); const frac = Math.abs(n % 1) > 0.004;
+  try { return new Intl.NumberFormat("en-AU", {style:"currency", currency:cur, minimumFractionDigits:frac?2:0, maximumFractionDigits:frac?2:0}).format(n); }
+  catch(e){ return `${cur} ${n.toFixed(frac ? 2 : 0)}`; }
+}
+const cents = n => Math.round(n * 100);
+const fromCents = c => c / 100;
+
+/* ---------- people ---------- */
+function safeColor(c){ return (typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c)) ? c : null; }
+function memberIds(){ return [...S.members.keys()].sort((x, y) => ((S.members.get(x).joinedAt || 0) - (S.members.get(y).joinedAt || 0))); }
+function nameOf(id){ const m = id && S.members.get(id); const n = m && typeof m.name === "string" ? m.name.trim() : ""; return n || "Someone"; }
+function colorOf(id){ const m = id && S.members.get(id); return safeColor(m && m.color) || "#64748B"; }
+function initials(n){ const p = String(n || "?").trim().split(/\s+/).filter(Boolean); return ((p[0] || "?")[0] + (p.length > 1 ? p[p.length-1][0] : "")).toUpperCase(); }
+function avatar(id, cls){ const n = nameOf(id); return h("span", {class:"av" + (cls ? " " + cls : ""), c:colorOf(id), title:n, "aria-hidden":"true"}, initials(n)); }
+const isMe = id => !!id && id === S.me;
+const nameOrYou = id => isMe(id) ? "you" : nameOf(id);
+const ready = () => S.mode === "ready";
+function goingIds(actId){ const out = []; for (const [id, m] of S.members) if (m && m.going && m.going[actId] === true) out.push(id); return out; }
+function iAmIn(actId){ const m = S.me && S.members.get(S.me); return !!(m && m.going && m.going[actId] === true); }
+
+/* ---------- records ---------- */
+function rows(map, test){ const out = []; for (const [id, v] of map) if (v && test(v)) out.push(Object.assign({id}, v)); return out; }
+const activities = () => rows(S.activities, a => typeof a.title === "string" && a.title.trim());
+const stays = () => rows(S.stays, s => typeof s.name === "string" && s.name.trim());
+const expenses = () => rows(S.expenses, e => typeof e.amount === "number" && e.amount > 0 && S.members.has(e.paidBy));
+function byTime(a, b){ const ta = a.start || "99:99", tb = b.start || "99:99"; if (ta !== tb) return ta < tb ? -1 : 1; return (a.createdAt || 0) - (b.createdAt || 0); }
+function staysOn(k){ return stays().filter(s => validKey(s.checkIn) && validKey(s.checkOut) && s.checkIn <= k && k <= s.checkOut); }
+function nightStay(k){ return stays().find(s => validKey(s.checkIn) && validKey(s.checkOut) && s.checkIn <= k && k < s.checkOut); }
+function nights(s){ return validKey(s.checkIn) && validKey(s.checkOut) ? Math.max(0, Math.round((pd(s.checkOut) - pd(s.checkIn)) / DAY)) : 0; }
+function paymentsFor(refId){ return expenses().filter(e => e.refId === refId && e.kind !== "settlement"); }
+
+/* ---------- money maths (integer cents) ---------- */
+function splitCents(e){
+  const amt = cents(e.amount);
+  const split = [...new Set((Array.isArray(e.splitWith) ? e.splitWith : []).filter(id => S.members.has(id)))].sort();
+  if (!amt || !split.length) return null;
+  const base = Math.floor(amt / split.length); let rem = amt - base * split.length;
+  return split.map(id => [id, base + (rem-- > 0 ? 1 : 0)]);
+}
+function ledger(){
+  const bal = new Map(), paid = new Map(), share = new Map();
+  for (const id of S.members.keys()){ bal.set(id, 0); paid.set(id, 0); share.set(id, 0); }
+  let total = 0;
+  for (const e of expenses()){
+    const parts = splitCents(e); if (!parts) continue;
+    const amt = cents(e.amount);
+    bal.set(e.paidBy, bal.get(e.paidBy) + amt);
+    if (e.kind !== "settlement"){ paid.set(e.paidBy, paid.get(e.paidBy) + amt); total += amt; }
+    for (const [id, c] of parts){ bal.set(id, bal.get(id) - c); if (e.kind !== "settlement") share.set(id, share.get(id) + c); }
+  }
+  return {bal, paid, share, total};
+}
+function settlePlan(bal){
+  const cred = [], debt = [];
+  for (const [id, v] of bal){ if (v > 0) cred.push([id, v]); else if (v < 0) debt.push([id, -v]); }
+  cred.sort((a, b) => b[1] - a[1]); debt.sort((a, b) => b[1] - a[1]);
+  const out = []; let i = 0, j = 0;
+  while (i < debt.length && j < cred.length){
+    const x = Math.min(debt[i][1], cred[j][1]);
+    if (x > 0) out.push({from:debt[i][0], to:cred[j][0], amt:x});
+    debt[i][1] -= x; cred[j][1] -= x;
+    if (debt[i][1] === 0) i++;
+    if (cred[j][1] === 0) j++;
+  }
+  return out;
+}
+function myShareOf(e){ const parts = splitCents(e); const mine = parts && parts.find(p => p[0] === S.me); return mine ? mine[1] : 0; }
+
+/* ---------- data stores ---------- */
+function hasConfig(){ return !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId); }
+let fbMods = null;
+async function firebase(){
+  if (fbMods) return fbMods;
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+  const [appMod, fs] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-firestore.js")]);
+  const app = appMod.initializeApp(firebaseConfig);
+  fbMods = {fs, db: fs.getFirestore(app)};
+  return fbMods;
+}
+async function firebaseStore(tripId){
+  const {fs, db} = await firebase();
+  const tripRef = fs.doc(db, "trips", tripId);
+  const ref = (col, id) => fs.doc(tripRef, col, id);
+  return {
+    kind:"firebase",
+    watchTrip(cb, err){ return fs.onSnapshot(tripRef, s => cb(s.exists() ? s.data() : null, s.metadata.fromCache), err); },
+    watch(col, cb, err){ return fs.onSnapshot(fs.collection(tripRef, col), q => cb(q.docs.map(d => [d.id, d.data()])), err); },
+    setTrip(data){ return fs.setDoc(tripRef, data, {merge:true}); },
+    newId(col){ return fs.doc(fs.collection(tripRef, col)).id; },
+    set(col, id, data){ return fs.setDoc(ref(col, id), data); },
+    update(col, id, data){ return fs.updateDoc(ref(col, id), data); },
+    del(col, id){ return fs.deleteDoc(ref(col, id)); },
+    setGoing(mid, actId, val){ return fs.updateDoc(ref("members", mid), new fs.FieldPath("going", actId), val); }
+  };
+}
+function demoStore(){
+  const data = {trip:null}; COLS.forEach(c => data[c] = new Map());
+  const subs = {trip:[]}; COLS.forEach(c => subs[c] = []);
+  const clone = v => JSON.parse(JSON.stringify(v));
+  const emit = col => {
+    if (col === "trip") subs.trip.forEach(f => f(data.trip ? clone(data.trip) : null));
+    else subs[col].forEach(f => f([...data[col].entries()].map(([k, v]) => [k, clone(v)])));
+  };
+  let n = 0;
+  const api = {
+    kind:"demo",
+    watchTrip(cb){ subs.trip.push(cb); setTimeout(() => emit("trip")); return () => {}; },
+    watch(col, cb){ subs[col].push(cb); setTimeout(() => emit(col)); return () => {}; },
+    async setTrip(d){ data.trip = Object.assign({}, data.trip || {}, clone(d)); emit("trip"); },
+    newId(){ return "d" + (++n) + Math.random().toString(36).slice(2, 8); },
+    async set(col, id, d){ data[col].set(id, clone(d)); emit(col); },
+    async update(col, id, d){ const cur = data[col].get(id); if (!cur) throw {code:"not-found"}; data[col].set(id, Object.assign({}, cur, clone(d))); emit(col); },
+    async del(col, id){ data[col].delete(id); emit(col); },
+    async setGoing(mid, actId, val){ const m = data.members.get(mid); if (!m) throw {code:"not-found"}; m.going = Object.assign({}, m.going || {}, {[actId]: val}); emit("members"); }
+  };
+  // Example data so the demo shows every feature. Nothing here is saved.
+  const t0 = new Date(); t0.setDate(t0.getDate() + 24);
+  const d = i => { const x = new Date(t0); x.setDate(x.getDate() + i); return `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`; };
+  const now = Date.now();
+  data.trip = {name:"Example trip", destination:"Byron Bay, NSW", start:d(0), end:d(3), currency:"AUD", createdAt:now};
+  const M = [["m1","Alex","#2142D4"],["m2","Sam","#C2410C"],["m3","Priya","#0F766E"],["m4","Jordan","#9333EA"]];
+  M.forEach(([id, name, color], i) => data.members.set(id, {name, color, joinedAt:now + i, going:{}}));
+  const acts = [
+    ["a1", {title:"Cape Byron lighthouse walk", date:d(1), start:"06:15", end:"08:00", location:"Cape Byron Lighthouse", cost:0, costBasis:"pp", category:"activity", status:"idea", notes:"Sunrise from the most easterly point. Bring a jumper.", createdBy:"m2"}],
+    ["a2", {title:"Surf lesson", date:d(1), start:"10:00", end:"12:00", location:"Main Beach, Byron Bay", cost:79, costBasis:"pp", category:"activity", status:"booked", link:"https://example.com", notes:"Meet at the surf school van.", createdBy:"m1"}],
+    ["a3", {title:"Group dinner", date:d(2), start:"19:00", location:"Jonson Street", cost:320, costBasis:"group", category:"food", status:"idea", notes:"", createdBy:"m3"}],
+    ["a4", {title:"Day trip to Bangalow markets", date:"", start:"", location:"Bangalow", cost:null, costBasis:"pp", category:"activity", status:"idea", notes:"Only on the 4th Sunday.", createdBy:"m4"}]
+  ];
+  acts.forEach(([id, a], i) => data.activities.set(id, Object.assign({end:"", link:"", createdAt:now + i}, a)));
+  data.members.get("m1").going = {a1:true, a2:true, a3:true};
+  data.members.get("m2").going = {a1:true, a2:true, a3:true};
+  data.members.get("m3").going = {a3:true};
+  data.stays.set("s1", {name:"Beach house on Lawson St", address:"Lawson Street, Byron Bay NSW", checkIn:d(0), checkInTime:"15:00", checkOut:d(3), checkOutTime:"10:00", ref:"EX-48213", phone:"", link:"", who:["m1","m2","m3","m4"], notes:"Key lockbox at the side gate. Two queen rooms, one bunk room.", createdBy:"m1", createdAt:now});
+  data.expenses.set("e1", {title:"Beach house (3 nights)", amount:1260, date:d(-30), paidBy:"m1", splitWith:["m1","m2","m3","m4"], category:"stay", refId:"s1", kind:"expense", notes:"", createdBy:"m1", createdAt:now});
+  data.expenses.set("e2", {title:"Surf lesson", amount:158, date:d(-5), paidBy:"m2", splitWith:["m1","m2"], category:"activity", refId:"a2", kind:"expense", notes:"", createdBy:"m2", createdAt:now + 1});
+  data.expenses.set("e3", {title:"Settle up", amount:100, date:d(-2), paidBy:"m3", splitWith:["m1"], category:"other", kind:"settlement", notes:"", createdBy:"m3", createdAt:now + 2});
+  return api;
+}
+
+/* ---------- connect ---------- */
+function tripIdFromHash(){ const h = decodeURIComponent(location.hash.slice(1)); return /^[A-Za-z0-9]{16,40}$/.test(h) || h === "demo" ? h : null; }
+function randomId(){ const abc = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"; const b = new Uint8Array(20); crypto.getRandomValues(b); return [...b].map(x => abc[x % abc.length]).join(""); }
+function problemFrom(e){
+  const c = e && e.code;
+  if (c === "permission-denied") return "The database refused access. In Firebase, check you published the Firestore rules from the setup guide.";
+  if (c === "not-found" || c === "failed-precondition") return "Firestore isn't set up for this Firebase project yet. Create the Firestore database (step 2 of the setup guide).";
+  if (c === "invalid-api-key" || /api-key/i.test(String(e && e.message))) return "The Firebase config at the top of index.html doesn't look right. Copy it again from Firebase project settings.";
+  return "Couldn't reach the trip database. Check your internet connection and the Firebase config, then reload.";
+}
+
+async function boot(){
+  S.tripId = tripIdFromHash();
+  S.demo = S.tripId === "demo";
+  if (!S.tripId){ S.mode = hasConfig() ? "landing" : "setup"; draw(); return; }
+  if (!S.demo && !hasConfig()){ S.mode = "setup"; draw(); return; }
+  S.mode = "loading"; draw();
+  try { S.store = S.demo ? demoStore() : await firebaseStore(S.tripId); }
+  catch(e){ console.error(e); S.mode = "problem"; S.problem = problemFrom(e); draw(); return; }
+  S.me = S.demo ? "m1" : store(`tripboard:${S.tripId}:me`);
+  S.tab = (["plan","stays","money"].includes(store("tripboard:tab")) && store("tripboard:tab")) || "plan";
+  const fail = e => { console.error(e); S.mode = "problem"; S.problem = problemFrom(e); draw(); };
+  S.store.watchTrip((t, fromCache) => {
+    S.trip = t; S.loaded.trip = true;
+    if (!t && !fromCache){ S.mode = "missing"; }
+    else if (t && (S.mode === "loading" || S.mode === "missing")) S.mode = "ready";
+    afterLoad(); render();
+  }, fail);
+  for (const col of COLS) S.store.watch(col, list => { S[col] = new Map(list); S.loaded[col] = true; afterLoad(); render(); }, fail);
+}
+function afterLoad(){
+  if (!Object.values(S.loaded).every(Boolean)) return;
+  if (S.me && !S.members.has(S.me)){ S.me = null; store(`tripboard:${S.tripId}:me`, null); }
+  if (!S.askedWho && !S.me && ready()){
+    S.askedWho = true;
+    const fresh = store("tripboard:new") === S.tripId;
+    setTimeout(() => {
+      if (fresh){ store("tripboard:new", null); S.afterJoin = () => openTrip(); openMember({mode:"self"}); }
+      else if (S.members.size) openWho(); else openMember({mode:"self"});
+    }, 150);
+  }
+}
+window.addEventListener("hashchange", () => location.reload());
+
+async function startTrip(btn){
+  if (!hasConfig()){ location.hash = "demo"; return; }
+  btn.disabled = true; btn.textContent = "Creating…";
+  const id = randomId();
+  try {
+    const st = await firebaseStore(id);
+    await Promise.race([
+      st.setTrip({name:"", destination:"", start:"", end:"", currency:"AUD", createdAt:Date.now()}),
+      new Promise((_, rej) => setTimeout(() => rej({code:"timeout"}), 15000))
+    ]);
+    store("tripboard:new", id);
+    location.hash = id;
+  } catch(e){
+    console.error(e); btn.disabled = false; btn.textContent = "Start a new trip";
+    toast(e && e.code === "timeout" ? "Couldn't reach Firebase. Check your connection and the setup steps." : problemFrom(e));
+  }
+}
+
+/* ---------- writes ---------- */
+function commit(promise, okMsg){
+  return Promise.resolve(promise).then(() => { if (okMsg) toast(okMsg); return true; }).catch(e => {
+    console.error(e);
+    const c = e && e.code;
+    if (c === "permission-denied") toast("The database refused that change. Check the Firestore rules from the setup guide.");
+    else if (c === "not-found") toast("That item was deleted by someone else.");
+    else toast("That didn't save. Check your connection and try again.");
+    return false;
+  });
+}
+let tt;
+function toast(msg){
+  const el = $("toast"); el.textContent = msg; el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("show"));
+  clearTimeout(tt); tt = setTimeout(() => { el.classList.remove("show"); setTimeout(() => { el.hidden = true; }, 250); }, 4200);
+}
+
+/* ---------- render ---------- */
+let rq = 0;
+function render(){ if (rq) return; rq = requestAnimationFrame(() => { rq = 0; draw(); }); }
+function draw(){
+  renderPass(); renderBar();
+  const page = $("page"); page.replaceChildren();
+  if (S.mode === "setup") page.append(viewSetup());
+  else if (S.mode === "landing") page.append(viewLanding());
+  else if (S.mode === "missing") page.append(viewMissing());
+  else if (S.mode === "problem") page.append(viewProblem());
+  else if (S.mode === "boot" || S.mode === "loading" || !Object.values(S.loaded).every(Boolean)) page.append(h("p", {class:"loading"}, "Loading the trip…"));
+  else {
+    if (S.demo) page.append(h("div", {class:"notice demo"}, h("b", null, "Demo with example data. "), "Nothing you change here is saved. Once Firebase is set up, start a real trip from the home page."));
+    else if (!S.me) page.append(h("div", {class:"notice"}, h("b", null, "Pick your name to start adding. "), h("button", {type:"button", class:"lnk", onclick:chooseMe}, "Choose who you are")));
+    if (S.tab === "plan") page.append(viewPlan());
+    else if (S.tab === "stays") page.append(viewStays());
+    else page.append(viewMoney());
+  }
+  document.title = ready() && S.trip && S.trip.name ? `${S.trip.name} · Trip Board` : "Trip Board";
+}
+
+function field(k, v, s, mark){ return h("div", {class:"field"}, h("div", {class:"k"}, k), h("div", {class:"v" + (mark ? " mark" : "")}, v), s ? h("div", {class:"s"}, s) : null); }
+function renderPass(){
+  const el = $("pass"); el.replaceChildren();
+  if (!ready()){
+    el.append(h("div", {class:"pass-top"}, h("div", {class:"pass-title"}, h("div", {class:"eyebrow"}, "Group trip planner"), h("h1", {class:"trip-name"}, "Trip Board"))));
+    return;
+  }
+  const t = S.trip || {};
+  const days = tripDays();
+  const name = (typeof t.name === "string" && t.name.trim()) || "Our trip";
+  const dest = typeof t.destination === "string" ? t.destination.trim() : "";
+  el.append(h("div", {class:"pass-top"},
+    h("div", {class:"pass-title"}, h("div", {class:"eyebrow"}, "Group trip planner"), h("h1", {class:"trip-name"}, name)),
+    h("div", {class:"pass-actions"},
+      h("button", {class:"btn on-band fill", type:"button", onclick:openInvite}, "Invite"),
+      h("button", {class:"btn on-band", type:"button", onclick:openTrip}, validKey(t.start) ? "Edit trip details" : "Set trip details"))));
+
+  const acts = activities(); const booked = acts.filter(a => a.status === "booked").length;
+  let cd = null;
+  if (days){
+    const tk = todayKey(), a = days[0], b = days[days.length-1];
+    if (tk < a){ const n = Math.round((pd(a) - pd(tk)) / DAY); cd = [String(n), n === 1 ? "day to go" : "days to go"]; }
+    else if (tk > b) cd = ["Done", "Trip complete"];
+    else cd = [`Day ${days.indexOf(tk) + 1}`, `of ${days.length}`];
+  }
+  const L = ledger();
+  el.append(h("div", {class:"fields"},
+    field("Destination", dest || "Not set"),
+    field("Dates", days ? fmtRange(days[0], days[days.length-1]) : "Not set"),
+    days ? field("Length", plural(days.length, "day"), days.length > 1 ? plural(days.length - 1, "night") : "Day trip") : null,
+    cd ? field("Countdown", cd[0], cd[1], true) : null,
+    field("Plan", plural(acts.length, "activity", "activities"), `${booked} booked · ${plural(stays().length, "stay")}`),
+    field("Group spend", money(fromCents(L.total)), plural(expenses().filter(e => e.kind !== "settlement").length, "expense"))));
+
+  const ids = memberIds();
+  el.append(h("div", {class:"travellers"},
+    h("span", {class:"k"}, `Travellers${ids.length ? " · " + ids.length : ""}`),
+    ids.length ? ids.map(id => h("button", {type:"button", class:"tr", onclick:() => openMember({mode:"edit", id}), "aria-label":`Edit ${nameOf(id)}`}, avatar(id), h("span", null, nameOf(id) + (isMe(id) ? " (you)" : ""))))
+               : h("span", {class:"tr-none"}, "No one has joined yet"),
+    h("button", {type:"button", class:"tr add", onclick:() => openMember({mode:"other"})}, "+ Add traveller")));
+}
+
+function renderBar(){
+  const el = $("bar"); el.replaceChildren();
+  $("bar-wrap").hidden = !ready();
+  if (!ready()) return;
+  el.append(S.me
+    ? h("button", {type:"button", class:"me-btn", onclick:chooseMe, "aria-label":"Switch person"}, avatar(S.me, "lg"), h("span", {class:"nm"}, nameOf(S.me)), h("span", {class:"ed"}, "Switch"))
+    : h("button", {type:"button", class:"btn", onclick:chooseMe}, "Who are you?"));
+  el.append(h("div", {class:"tabs", role:"tablist", "aria-label":"Sections"},
+    [["plan","Plan"],["stays","Stays"],["money","Money"]].map(([k, l]) => h("button", {type:"button", role:"tab", class:"tab", "aria-selected":String(S.tab === k), onclick:() => { S.tab = k; S.confirm = null; store("tripboard:tab", k); draw(); window.scrollTo({top:Math.min(window.scrollY, $("bar-wrap").offsetTop)}); }}, l))));
+  const add = {plan:["Add activity", () => needMe(() => openAct(null, S.day || ""))], stays:["Add stay", () => needMe(() => openStay(null))], money:["Add expense", () => needMe(() => openExp(null))]}[S.tab];
+  el.append(h("button", {type:"button", class:"btn primary", onclick:add[1]}, icon("plus"), add[0]));
+}
+function needMe(fn){ if (S.me) return fn(); S.afterJoin = fn; if (S.members.size) openWho(); else openMember({mode:"self"}); }
+
+/* ---------- pre-trip views ---------- */
+function viewSetup(){
+  return h("section", {class:"landing"},
+    h("div", {class:"empty"},
+      h("p", {class:"ttl"}, "Connect the database"),
+      h("p", null, "Trip Board saves the group's plan to a free Firebase database you own. Paste your Firebase config at the top of index.html; README.md walks through it in about ten minutes."),
+      h("ol", {class:"steps"},
+        h("li", null, "Create a Firebase project and a Firestore database."),
+        h("li", null, "Publish the security rules from the README."),
+        h("li", null, "Paste the web app config into index.html."),
+        h("li", null, "Upload index.html to GitHub Pages.")),
+      h("a", {class:"btn primary", href:"#demo"}, "Try the demo with example data")));
+}
+function viewLanding(){
+  return h("section", {class:"landing"},
+    h("div", {class:"empty"},
+      h("p", {class:"ttl"}, "Plan a trip together"),
+      h("p", null, "Start a trip and you'll get a private link to drop in the group chat. Anyone with the link can add activities, accommodation and expenses. Nobody needs an account."),
+      h("div", {style:"display:flex;gap:8px;flex-wrap:wrap"},
+        h("button", {type:"button", class:"btn primary", onclick:e => startTrip(e.currentTarget)}, "Start a new trip"),
+        h("a", {class:"btn", href:"#demo"}, "See the demo"))),
+    h("p", {class:"hint"}, "Got a link from a friend? Open that link instead. It ends in a code that points to your group's trip."));
+}
+function viewMissing(){
+  return h("section", {class:"landing"}, h("div", {class:"empty"},
+    h("p", {class:"ttl"}, "Trip not found"),
+    h("p", null, "This link doesn't match a trip. Check you copied the whole link from the group chat, including the code after the #."),
+    h("a", {class:"btn", href:location.pathname}, "Go to the home page")));
+}
+function viewProblem(){
+  return h("section", {class:"landing"}, h("div", {class:"empty"},
+    h("p", {class:"ttl"}, "Can't connect"),
+    h("p", null, S.problem),
+    h("button", {type:"button", class:"btn", onclick:() => location.reload()}, "Try again")));
+}
+
+/* ---------- Plan ---------- */
+function matchesPerson(a){ return !S.person || a.createdBy === S.person; }
+function viewPlan(){
+  const wrap = h("div", {class:"plan"});
+  const ids = memberIds();
+  if (S.person && !ids.includes(S.person)) S.person = null;
+  if (ids.length > 1) wrap.append(h("div", {class:"full filters"},
+    h("span", {class:"tag"}, "Added by"),
+    h("button", {type:"button", class:"fchip", "aria-pressed":String(!S.person), onclick:() => { S.person = null; draw(); }}, h("span", {class:"dot", style:"background:var(--line)"}), h("span", null, "Everyone")),
+    ids.map(id => h("button", {type:"button", class:"fchip", c:colorOf(id), "aria-pressed":String(S.person === id), onclick:() => { S.person = S.person === id ? null : id; draw(); }}, h("span", {class:"dot"}), h("span", null, nameOf(id) + (isMe(id) ? " (you)" : ""))))));
+  wrap.append(viewCalendar(), viewItinerary());
+  return wrap;
+}
+function viewCalendar(){
+  const days = tripDays();
+  const sec = h("section", {class:"cal-sec" + (days && days.length <= 21 ? " stick" : ""), "aria-labelledby":"cal-h"},
+    h("div", {class:"sec-head"}, h("h2", {id:"cal-h"}, "Calendar"), days ? h("span", {class:"sub"}, `${plural(days.length, "day")} · weeks start Monday`) : null));
+  if (!days){
+    sec.append(h("div", {class:"empty"}, h("p", {class:"ttl"}, "No dates yet"),
+      h("p", null, "Set the first and last day of the trip and every day shows up here, with each activity in the colour of whoever added it."),
+      h("button", {type:"button", class:"btn primary", onclick:openTrip}, "Set trip dates")));
+    return sec;
+  }
+  const inTrip = new Set(days);
+  const byDay = new Map();
+  for (const a of activities().filter(matchesPerson)) if (validKey(a.date)){ if (!byDay.has(a.date)) byDay.set(a.date, []); byDay.get(a.date).push(a); }
+  for (const l of byDay.values()) l.sort(byTime);
+  const start = pd(days[0]), end = pd(days[days.length-1]);
+  const gs = start - ((dow(start) + 6) % 7) * DAY, ge = end + (6 - ((dow(end) + 6) % 7)) * DAY;
+  const total = Math.round((ge - gs) / DAY) + 1, tk = todayKey();
+  const grid = h("div", {class:"cal-grid"});
+  let i = 0;
+  for (let m = gs; m <= ge; m += DAY, i++){
+    const k = key(m), d = new Date(m), last = i >= total - 7, n = days.indexOf(k) + 1;
+    const top = h("span", {class:"dtop"}, h("span", {class:"dnum"}, d.getUTCDate()),
+      (i === 0 || d.getUTCDate() === 1) ? h("span", {class:"dmon"}, MO[d.getUTCMonth()]) : null,
+      n ? h("span", {class:"dlab"}, "Day " + n) : null);
+    if (!inTrip.has(k)){ grid.append(h("div", {class:"day out" + (last ? " last" : ""), "aria-hidden":"true"}, top)); continue; }
+    const items = byDay.get(k) || [];
+    const st = staysOn(k).sort((x, y) => (y.checkIn === k) - (x.checkIn === k))[0];
+    const stLabel = st ? (k === st.checkIn ? `In · ${st.name}` : k === st.checkOut ? `Out · ${st.name}` : st.name) : null;
+    grid.append(h("button", {type:"button", class:"day" + (k === tk ? " today" : "") + (last ? " last" : ""), "aria-pressed":String(S.day === k),
+        "aria-label":`${fmtDay(k)}, day ${n}, ${plural(items.length, "activity", "activities")}${st ? ", staying at " + st.name : ""}`, onclick:() => selectDay(k)},
+      top,
+      stLabel ? h("span", {class:"stayband", title:stLabel}, stLabel) : null,
+      h("span", {class:"chips"}, items.slice(0, 3).map(a => h("span", {class:"chip", c:colorOf(a.createdBy), title:`${a.title} · added by ${nameOf(a.createdBy)}`}, a.start ? h("b", null, fmtTime(a.start)) : null, a.title)),
+        items.length > 3 ? h("span", {class:"more"}, `+${items.length - 3} more`) : null),
+      h("span", {class:"dots"}, items.slice(0, 4).map(a => h("i", {c:colorOf(a.createdBy)})), items.length > 4 ? h("span", {class:"more"}, "+" + (items.length - 4)) : null)));
+  }
+  sec.append(h("div", {class:"cal"}, h("div", {class:"cal-head", "aria-hidden":"true"}, ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(x => h("div", null, x))), grid),
+    h("p", {class:"hint"}, S.day ? `Showing ${fmtDay(S.day)} in the itinerary. Select it again to show every day.` : "Select a day to show just that day in the itinerary."));
+  return sec;
+}
+function selectDay(k){
+  S.day = S.day === k ? null : k; S.confirm = null; draw();
+  if (S.day && window.matchMedia("(max-width:1079px)").matches){
+    const el = document.querySelector(".list-sec");
+    if (el) el.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+  }
+}
+function groupHead(title, sub, addDate){
+  return h("div", {class:"dg-head"},
+    h("div", {class:"dg-t"}, h("h3", {class:"dg-title"}, title), sub ? h("span", {class:"dg-sub"}, sub) : null),
+    h("button", {type:"button", class:"btn quiet small", onclick:() => needMe(() => openAct(null, addDate))}, icon("plus"), addDate ? "Add" : "Add idea"));
+}
+function viewItinerary(){
+  const sec = h("section", {class:"list-sec", "aria-labelledby":"list-h"},
+    h("div", {class:"sec-head"}, h("h2", {id:"list-h"}, "Itinerary"), S.day ? h("button", {type:"button", class:"btn small", onclick:() => { S.day = null; draw(); }}, "Show all days") : null));
+  const list = h("div", {class:"list"}); sec.append(list);
+  const days = tripDays(); const idx = new Map((days || []).map((k, i) => [k, i + 1]));
+  const acts = activities().filter(matchesPerson);
+  const byDay = new Map(), undated = [];
+  for (const a of acts){ if (validKey(a.date)){ if (!byDay.has(a.date)) byDay.set(a.date, []); byDay.get(a.date).push(a); } else undated.push(a); }
+  if (!acts.length && !days && !S.person){
+    list.append(h("div", {class:"empty"}, h("p", {class:"ttl"}, "Nothing planned yet"),
+      h("p", null, "Add the first idea. It doesn't need a date; anything undated waits under “No date yet” until you slot it in."),
+      h("button", {type:"button", class:"btn primary", onclick:() => needMe(() => openAct(null, ""))}, icon("plus"), "Add activity")));
+    return sec;
+  }
+  let keys;
+  if (S.day) keys = [S.day];
+  else { const set = new Set(days || []); for (const k of byDay.keys()) set.add(k); keys = [...set].sort(); }
+  for (const k of keys){
+    const items = (byDay.get(k) || []).sort(byTime);
+    if (!items.length && S.person && !S.day) continue;
+    const n = idx.get(k), ns = nightStay(k);
+    const sub = [n ? fmtDay(k) : "Outside the trip dates", ns ? `Staying at ${ns.name}` : null].filter(Boolean).join(" · ");
+    const g = h("div", {class:"dg"}, groupHead(n ? `Day ${n}` : fmtDay(k), sub, k));
+    if (items.length) items.forEach(a => g.append(actTicket(a)));
+    else g.append(h("div", {class:"free"}, h("span", null, S.person ? `Nothing added by ${nameOf(S.person)}` : "Free day so far"),
+      !S.person ? h("button", {type:"button", class:"btn small", onclick:() => needMe(() => openAct(null, k))}, "Plan something") : null));
+    list.append(g);
+  }
+  if (!S.day){
+    const g = h("div", {class:"dg"}, groupHead("No date yet", "Ideas to slot in", ""));
+    if (undated.length) undated.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach(a => g.append(actTicket(a)));
+    else g.append(h("div", {class:"free"}, h("span", null, "Ideas without a date land here.")));
+    list.append(g);
+  }
+  return sec;
+}
+function confirmRow(label, onYes){
+  return h("div", {class:"confirm"}, h("span", null, label),
+    h("button", {type:"button", class:"btn small", onclick:() => { S.confirm = null; draw(); }}, "Keep it"),
+    h("button", {type:"button", class:"btn small danger", onclick:onYes}, "Delete"));
+}
+function actTicket(a){
+  const going = goingIds(a.id);
+  let cost = null;
+  if (typeof a.cost === "number" && a.cost >= 0){
+    if (a.cost === 0) cost = h("div", {class:"cost"}, "Free");
+    else if (a.costBasis === "group") cost = h("div", {class:"cost"}, money(a.cost), h("small", null, going.length > 1 ? `group total · ≈${money(a.cost / going.length)} each` : "group total"));
+    else cost = h("div", {class:"cost"}, money(a.cost), h("small", null, "per person"));
+  }
+  const loc = typeof a.location === "string" ? a.location.trim() : "";
+  const link = typeof a.link === "string" && /^https?:\/\//i.test(a.link.trim()) ? a.link.trim() : "";
+  const notes = typeof a.notes === "string" ? a.notes.trim() : "";
+  const booked = a.status === "booked";
+  const pays = paymentsFor(a.id);
+  let foot;
+  if (S.confirm === a.id) foot = confirmRow(`Delete “${a.title}” for everyone?`, () => { S.confirm = null; commit(S.store.del("activities", a.id), "Activity deleted."); });
+  else {
+    const mine = iAmIn(a.id);
+    foot = [
+      h("span", {class:"by"}, avatar(a.createdBy), h("span", null, "Added by ", h("b", null, nameOrYou(a.createdBy)))),
+      going.length ? h("span", {class:"going", title:going.map(nameOf).join(", ")}, h("span", {class:"stack"}, going.slice(0, 5).map(id => avatar(id))), `${going.length} in`) : null,
+      pays.length ? h("span", {class:"paidnote"}, icon("check"), `Paid by ${[...new Set(pays.map(p => nameOrYou(p.paidBy)))].join(", ")}`) : null,
+      h("span", {class:"t-actions"},
+        h("button", {type:"button", class:"btn small inbtn", "aria-pressed":String(mine), onclick:() => needMe(() => commit(S.store.setGoing(S.me, a.id, !iAmIn(a.id))))}, mine ? [icon("check"), "I'm in"] : "I'm in"),
+        typeof a.cost === "number" && a.cost > 0 && !pays.length ? h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openExp(null, prefillFromAct(a)))}, "Log payment") : null,
+        h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openAct(a))}, "Edit"),
+        h("button", {type:"button", class:"btn small quiet", onclick:() => { S.confirm = a.id; draw(); }}, "Delete"))
+    ];
+  }
+  return h("article", {class:"ticket", c:colorOf(a.createdBy), "aria-label":a.title},
+    h("div", {class:"stub"},
+      a.start ? [h("span", {class:"t1"}, fmtTime(a.start)), a.end ? h("span", {class:"t2"}, "to " + fmtTime(a.end)) : null] : h("span", {class:"t1 any"}, "Any time"),
+      h("span", {class:"cat"}, CATMAP[a.category] || "Activity")),
+    h("div", {class:"tb"},
+      h("div", {class:"t-top"}, h("div", {class:"t-name"}, h("h4", {class:"t-title"}, a.title), h("span", {class:"pill" + (booked ? " booked" : "")}, booked ? [icon("check"), "Booked"] : "Idea")), cost),
+      (loc || link) ? h("div", {class:"t-meta"},
+        loc ? h("a", {href:"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(loc), target:"_blank", rel:"noopener noreferrer"}, icon("pin"), loc) : null,
+        link ? h("a", {href:link, target:"_blank", rel:"noopener noreferrer"}, "Booking link", icon("out")) : null) : null,
+      notes ? h("p", {class:"t-notes"}, notes) : null,
+      h("div", {class:"t-foot"}, foot)));
+}
+function prefillFromAct(a){
+  const going = goingIds(a.id);
+  const split = going.length ? going : memberIds();
+  const amount = a.costBasis === "group" ? a.cost : a.cost * Math.max(split.length, 1);
+  const cat = {activity:"activity", food:"food", transport:"transport", stay:"stay"}[a.category] || "other";
+  return {title:a.title, amount, splitWith:split, category:cat, refId:a.id, date:validKey(a.date) && a.date <= todayKey() ? a.date : todayKey()};
+}
+
+/* ---------- Stays ---------- */
+function viewStays(){
+  const wrap = h("section", {class:"stays", "aria-labelledby":"stays-h"},
+    h("div", {class:"sec-head", style:"margin-bottom:0"}, h("h2", {id:"stays-h"}, "Accommodation"), h("span", {class:"sub"}, "Where everyone's sleeping, with check-in times and booking details")));
+  const list = stays().sort((a, b) => String(a.checkIn || "9").localeCompare(String(b.checkIn || "9")) || (a.createdAt || 0) - (b.createdAt || 0));
+  const days = tripDays();
+  if (days && days.length > 1){
+    const missing = days.slice(0, -1).filter(k => !nightStay(k));
+    if (missing.length && missing.length < days.length - 1) wrap.append(h("div", {class:"gap-note"}, h("b", null, `No accommodation yet for ${plural(missing.length, "night")}`), h("span", null, missing.map(fmtDay).join(", "))));
+    else if (missing.length) wrap.append(h("div", {class:"gap-note"}, h("b", null, `${plural(missing.length, "night")} to book`), h("span", null, "Add each place as it's booked and the calendar shows who's sleeping where.")));
+  }
+  if (!list.length){
+    wrap.append(h("div", {class:"empty"}, h("p", {class:"ttl"}, "No stays yet"),
+      h("p", null, "Add each booking with its address, check-in and check-out times and booking reference, so nobody has to dig through emails at the front desk."),
+      h("button", {type:"button", class:"btn primary", onclick:() => needMe(() => openStay(null))}, icon("plus"), "Add stay")));
+    return wrap;
+  }
+  list.forEach(s => wrap.append(stayTicket(s)));
+  return wrap;
+}
+function stayTicket(s){
+  const n = nights(s);
+  const addr = typeof s.address === "string" ? s.address.trim() : "";
+  const link = typeof s.link === "string" && /^https?:\/\//i.test(s.link.trim()) ? s.link.trim() : "";
+  const who = (Array.isArray(s.who) ? s.who : []).filter(id => S.members.has(id));
+  const pays = paymentsFor(s.id);
+  const paidTotal = pays.reduce((t, p) => t + cents(p.amount), 0);
+  const kv = h("dl", {class:"kv"},
+    validKey(s.checkIn) ? [h("dt", null, "Check-in"), h("dd", null, fmtDay(s.checkIn) + (s.checkInTime ? ", from " + fmtTime(s.checkInTime) : ""))] : null,
+    validKey(s.checkOut) ? [h("dt", null, "Check-out"), h("dd", null, fmtDay(s.checkOut) + (s.checkOutTime ? ", by " + fmtTime(s.checkOutTime) : ""))] : null,
+    s.ref ? [h("dt", null, "Booking ref"), h("dd", null, h("span", {class:"ref"}, s.ref), h("button", {type:"button", class:"copy", onclick:e => copyText(s.ref, e.currentTarget)}, "Copy"))] : null,
+    s.phone ? [h("dt", null, "Phone"), h("dd", null, h("span", {class:"ref"}, s.phone))] : null,
+    who.length ? [h("dt", null, "Staying"), h("dd", null, h("span", {class:"stack"}, who.map(id => avatar(id))), " ", who.length === S.members.size ? "Everyone" : who.map(nameOrYou).join(", "))] : null);
+  let foot;
+  if (S.confirm === s.id) foot = confirmRow(`Delete “${s.name}” for everyone?`, () => { S.confirm = null; commit(S.store.del("stays", s.id), "Stay deleted."); });
+  else foot = [
+    h("span", {class:"by"}, avatar(s.createdBy), h("span", null, "Added by ", h("b", null, nameOrYou(s.createdBy)))),
+    pays.length ? h("span", {class:"paidnote"}, icon("check"), `${money(fromCents(paidTotal))} paid by ${[...new Set(pays.map(p => nameOrYou(p.paidBy)))].join(", ")}`) : null,
+    h("span", {class:"t-actions"},
+      h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openExp(null, {title:s.name, category:"stay", refId:s.id, splitWith:who.length ? who : memberIds(), date:todayKey()}))}, "Log payment"),
+      h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openStay(s))}, "Edit"),
+      h("button", {type:"button", class:"btn small quiet", onclick:() => { S.confirm = s.id; draw(); }}, "Delete"))
+  ];
+  return h("article", {class:"ticket", c:colorOf(s.createdBy), "aria-label":s.name},
+    h("div", {class:"stub"},
+      h("span", {class:"big"}, n || "–"), h("span", {class:"t2"}, n === 1 ? "night" : "nights"),
+      validKey(s.checkIn) ? h("span", {class:"cat"}, fmtShort(s.checkIn) + (validKey(s.checkOut) ? " – " + fmtShort(s.checkOut) : "")) : null),
+    h("div", {class:"tb"},
+      h("div", {class:"t-top"}, h("div", {class:"t-name"}, h("h4", {class:"t-title"}, s.name))),
+      (addr || link) ? h("div", {class:"t-meta"},
+        addr ? h("a", {href:"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(addr), target:"_blank", rel:"noopener noreferrer"}, icon("pin"), addr) : null,
+        link ? h("a", {href:link, target:"_blank", rel:"noopener noreferrer"}, "Booking link", icon("out")) : null) : null,
+      kv,
+      s.notes ? h("p", {class:"t-notes"}, s.notes) : null,
+      h("div", {class:"t-foot"}, foot)));
+}
+function copyText(text, btn){
+  const done = () => { const o = btn.textContent; btn.textContent = "Copied"; setTimeout(() => { btn.textContent = o; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => toast("Couldn't copy. Select the text and copy it instead."));
+  else toast("Couldn't copy. Select the text and copy it instead.");
+}
+
+/* ---------- Money ---------- */
+function viewMoney(){
+  const wrap = h("section", {class:"money", "aria-labelledby":"money-h"},
+    h("div", {class:"sec-head", style:"margin-bottom:0"}, h("h2", {id:"money-h"}, "Money"), h("span", {class:"sub"}, `Who paid for what, in ${currency()}. Split evenly between the people ticked on each expense.`)));
+  const L = ledger();
+  const myBal = S.me ? L.bal.get(S.me) || 0 : 0;
+  wrap.append(h("div", {class:"tiles"},
+    tile("Group spend", money(fromCents(L.total)), plural(expenses().filter(e => e.kind !== "settlement").length, "expense")),
+    S.me ? tile("You paid", money(fromCents(L.paid.get(S.me) || 0)), "Out of your pocket") : null,
+    S.me ? tile("Your share", money(fromCents(L.share.get(S.me) || 0)), "What your part costs") : null,
+    S.me ? tile("Your balance", Math.abs(myBal) < 1 ? "Square" : money(fromCents(Math.abs(myBal))), Math.abs(myBal) < 1 ? "You're all settled" : myBal > 0 ? "The group owes you" : "You owe the group", Math.abs(myBal) < 1 ? "" : myBal > 0 ? "pos" : "neg") : null));
+
+  const cols = h("div", {class:"money-cols"});
+  const left = h("div", {style:"display:grid;gap:26px;min-width:0"});
+  // Balances
+  const ids = memberIds();
+  const maxAbs = Math.max(1, ...ids.map(id => Math.abs(L.bal.get(id) || 0)));
+  left.append(h("div", null,
+    h("div", {class:"sec-head"}, h("h2", null, "Balances"), h("span", {class:"sub"}, "Paid minus share, after paybacks")),
+    ids.length ? h("div", {class:"panel"}, ids.map(id => {
+      const b = L.bal.get(id) || 0, cls = Math.abs(b) < 1 ? "" : b > 0 ? "pos" : "neg";
+      return h("div", {class:"bal"},
+        h("div", {class:"who"}, avatar(id), h("div", {style:"min-width:0"}, h("b", null, nameOf(id) + (isMe(id) ? " (you)" : "")), h("div", {class:"sub"}, `paid ${money(fromCents(L.paid.get(id) || 0))} · share ${money(fromCents(L.share.get(id) || 0))}`))),
+        h("div", {class:"amt " + cls}, cls ? (b > 0 ? "+" : "−") + money(fromCents(Math.abs(b))) : "Square", h("small", null, cls ? (b > 0 ? "is owed" : "owes") : "settled")),
+        h("div", {class:"dbar", "aria-hidden":"true"}, cls ? h("i", {class:cls, style:`width:${(Math.abs(b) / maxAbs * 50).toFixed(1)}%`}) : null));
+    })) : h("div", {class:"empty"}, h("p", null, "Add travellers to start tracking who owes who."))));
+  // Settle up
+  const plan = settlePlan(new Map(L.bal));
+  left.append(h("div", null,
+    h("div", {class:"sec-head"}, h("h2", null, "Settle up"), h("span", {class:"sub"}, "The fewest paybacks to square everyone")),
+    h("div", {class:"panel"}, plan.length ? plan.map(p => h("div", {class:"settle"},
+      h("span", {class:"flow"}, avatar(p.from), h("b", null, nameOrYou(p.from)), icon("arrow"), avatar(p.to), h("b", null, nameOrYou(p.to))),
+      h("span", {class:"amt"}, money(fromCents(p.amt))),
+      h("button", {type:"button", class:"btn small", onclick:() => needMe(() => commit(S.store.set("expenses", S.store.newId("expenses"), {title:"Settle up", amount:fromCents(p.amt), date:todayKey(), paidBy:p.from, splitWith:[p.to], category:"other", kind:"settlement", refId:"", notes:"", createdBy:S.me, createdAt:Date.now()}), `Recorded ${nameOf(p.from)} paying ${nameOf(p.to)} ${money(fromCents(p.amt))}.`))}, "Mark as paid")))
+      : h("p", {class:"allsquare"}, expenses().length ? "Everyone's square." : "Nothing to settle yet."))));
+  cols.append(left);
+  // Expenses list
+  const exps = expenses().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || (b.createdAt || 0) - (a.createdAt || 0));
+  cols.append(h("div", {style:"min-width:0"},
+    h("div", {class:"sec-head"}, h("h2", null, "Expenses"), h("button", {type:"button", class:"btn small", onclick:() => needMe(() => openExp(null))}, icon("plus"), "Add expense")),
+    exps.length ? h("div", {class:"panel"}, exps.map(expRow)) :
+      h("div", {class:"empty"}, h("p", {class:"ttl"}, "No expenses yet"), h("p", null, "Log each payment with who paid and who it was for. Balances and paybacks work themselves out."))));
+  wrap.append(cols);
+  return wrap;
+}
+function tile(k, v, s, cls){ return h("div", {class:"tile"}, h("div", {class:"k"}, k), h("div", {class:"v" + (cls ? " " + cls : "")}, v), s ? h("div", {class:"s"}, s) : null); }
+function expRow(e){
+  const parts = splitCents(e) || [];
+  const settlement = e.kind === "settlement";
+  const mine = myShareOf(e);
+  const refName = e.refId ? ((S.activities.get(e.refId) || {}).title || (S.stays.get(e.refId) || {}).name || "") : "";
+  const row = h("div", {class:"exp" + (settlement ? " transfer" : "")},
+    h("div", {class:"d"}, validKey(e.date) ? fmtShort(e.date) : "No date"),
+    h("div", {style:"min-width:0"},
+      settlement ? h("div", {class:"t"}, `${nameOf(e.paidBy)} paid ${parts.map(p => nameOf(p[0])).join(", ")} back`) : h("div", {class:"t"}, e.title || "Expense"),
+      h("div", {class:"m"},
+        settlement ? h("span", null, "Payback") : [
+          h("span", {style:"display:inline-flex;align-items:center;gap:5px"}, avatar(e.paidBy), `Paid by ${nameOrYou(e.paidBy)}`),
+          h("span", null, parts.length === S.members.size && parts.length > 1 ? `Split ${parts.length} ways` : parts.length === 1 ? `For ${nameOrYou(parts[0][0])}` : `Split: ${parts.map(p => nameOrYou(p[0])).join(", ")}`),
+          h("span", null, EXPMAP[e.category] || "Other"),
+          refName ? h("span", null, `For “${refName}”`) : null])),
+    h("div", {class:"a"}, money(e.amount), !settlement && S.me ? h("small", null, mine ? `your share ${money(fromCents(mine))}` : "not in this one") : null));
+  if (S.confirm === e.id) row.append(confirmRow(settlement ? "Delete this payback?" : `Delete “${e.title}”?`, () => { S.confirm = null; commit(S.store.del("expenses", e.id), "Expense deleted."); }));
+  else row.append(h("div", {class:"acts"},
+    h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openExp(e))}, "Edit"),
+    h("button", {type:"button", class:"btn small quiet", onclick:() => { S.confirm = e.id; draw(); }}, "Delete")));
+  return row;
+}
+
+/* ---------- dialogs ---------- */
+const dlgs = ["dlg-act","dlg-stay","dlg-exp","dlg-trip","dlg-who","dlg-member","dlg-invite"].map($);
+for (const d of dlgs) d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+function open(d){ try { d.showModal(); } catch(e){ d.setAttribute("open", ""); } }
+function showErr(id, msg){ const el = $(id); el.textContent = msg || ""; el.hidden = !msg; }
+$("a-cat").append(...CATS.map(([v, l]) => h("option", {value:v}, l)));
+$("e-cat").append(...EXP_CATS.map(([v, l]) => h("option", {value:v}, l)));
+$("t-cur").append(...CURRENCIES.map(c => h("option", {value:c}, c)));
+function byLine(elId, id, editing){ const by = $(elId); by.replaceChildren(); if (editing) by.append(avatar(id), `Added by ${nameOrYou(id)}`); else by.append(avatar(S.me), `Adding as ${nameOf(S.me)}`); }
+function peoplePicker(fs, legend, selected, onChange){
+  fs.replaceChildren();
+  const ids = memberIds();
+  const sync = () => { if (onChange) onChange(); };
+  fs.append(h("legend", null, legend,
+    h("button", {type:"button", class:"lnk", onclick:() => { fs.querySelectorAll("input").forEach(i => i.checked = true); sync(); }}, "Everyone"),
+    h("button", {type:"button", class:"lnk", onclick:() => { fs.querySelectorAll("input").forEach(i => i.checked = false); sync(); }}, "Clear")));
+  fs.append(h("div", {class:"people"}, ids.map(id => h("label", {class:"pcheck"},
+    h("input", {type:"checkbox", value:id, checked:selected.includes(id), onchange:sync, "aria-label":nameOf(id)}),
+    h("span", null, avatar(id), nameOf(id) + (isMe(id) ? " (you)" : ""))))));
+}
+const picked = fs => [...fs.querySelectorAll("input:checked")].map(i => i.value);
+function cleanLink(v){ v = v.trim(); return v && !/^https?:\/\//i.test(v) ? "https://" + v : v; }
+
+/* Activity */
+function openAct(a, date){
+  S.editing = a ? a.id : null;
+  $("act-h").textContent = a ? "Edit activity" : "Add an activity";
+  $("a-save").textContent = a ? "Save changes" : "Add activity";
+  $("a-title").value = a ? a.title : "";
+  $("a-date").value = a ? (validKey(a.date) ? a.date : "") : (date || "");
+  $("a-start").value = a && a.start || ""; $("a-end").value = a && a.end || "";
+  $("a-loc").value = a && a.location || "";
+  $("a-cost").value = a && typeof a.cost === "number" ? String(a.cost) : "";
+  $("a-basis").value = a && a.costBasis === "group" ? "group" : "pp";
+  $("a-cat").value = a && CATMAP[a.category] ? a.category : "activity";
+  $("a-status").value = a && a.status === "booked" ? "booked" : "idea";
+  $("a-link").value = a && a.link || ""; $("a-notes").value = a && a.notes || "";
+  byLine("a-by", a ? a.createdBy : S.me, !!a);
+  showErr("a-err", ""); open($("dlg-act")); $("a-title").focus();
+}
+$("f-act").addEventListener("submit", e => {
+  e.preventDefault();
+  const title = $("a-title").value.trim();
+  if (!title){ showErr("a-err", "Give the activity a name."); $("a-title").focus(); return; }
+  const cs = $("a-cost").value.trim(), cost = cs === "" ? null : Number(cs);
+  if (cost !== null && (!isFinite(cost) || cost < 0)){ showErr("a-err", "Enter the cost as a number, like 45 or 12.50."); $("a-cost").focus(); return; }
+  const date = $("a-date").value;
+  const data = {title, date:validKey(date) ? date : "", start:$("a-start").value || "", end:$("a-end").value || "", location:$("a-loc").value.trim(),
+    cost, costBasis:$("a-basis").value, category:$("a-cat").value, status:$("a-status").value, link:cleanLink($("a-link").value), notes:$("a-notes").value.trim(), updatedAt:Date.now()};
+  const id = S.editing;
+  $("dlg-act").close();
+  commit(id ? S.store.update("activities", id, data) : S.store.set("activities", S.store.newId("activities"), Object.assign(data, {createdBy:S.me, createdAt:Date.now()})), id ? "Changes saved." : `Added “${title}”.`);
+});
+
+/* Stay */
+function openStay(s){
+  S.editing = s ? s.id : null;
+  $("stay-h").textContent = s ? "Edit stay" : "Add accommodation";
+  $("s-save").textContent = s ? "Save changes" : "Add stay";
+  const days = tripDays();
+  $("s-name").value = s ? s.name : "";
+  $("s-addr").value = s && s.address || "";
+  $("s-in").value = s ? (s.checkIn || "") : (days ? days[0] : "");
+  $("s-out").value = s ? (s.checkOut || "") : (days ? days[days.length-1] : "");
+  $("s-intime").value = s && s.checkInTime || ""; $("s-outtime").value = s && s.checkOutTime || "";
+  $("s-ref").value = s && s.ref || ""; $("s-phone").value = s && s.phone || "";
+  $("s-link").value = s && s.link || ""; $("s-notes").value = s && s.notes || "";
+  peoplePicker($("s-who"), "Who's staying", s && Array.isArray(s.who) ? s.who : memberIds());
+  byLine("s-by", s ? s.createdBy : S.me, !!s);
+  showErr("s-err", ""); open($("dlg-stay")); $("s-name").focus();
+}
+$("s-in").addEventListener("change", () => { const a = $("s-in").value, b = $("s-out").value; if (a && (!b || b <= a)) $("s-out").value = key(pd(a) + DAY); });
+$("f-stay").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("s-name").value.trim(), ci = $("s-in").value, co = $("s-out").value;
+  if (!name){ showErr("s-err", "Add the name of the place."); $("s-name").focus(); return; }
+  if (!validKey(ci) || !validKey(co)){ showErr("s-err", "Add the check-in and check-out dates."); return; }
+  if (co <= ci){ showErr("s-err", "Check-out needs to be after check-in."); $("s-out").focus(); return; }
+  const data = {name, address:$("s-addr").value.trim(), checkIn:ci, checkInTime:$("s-intime").value || "", checkOut:co, checkOutTime:$("s-outtime").value || "",
+    ref:$("s-ref").value.trim(), phone:$("s-phone").value.trim(), who:picked($("s-who")), link:cleanLink($("s-link").value), notes:$("s-notes").value.trim(), updatedAt:Date.now()};
+  const id = S.editing;
+  $("dlg-stay").close();
+  commit(id ? S.store.update("stays", id, data) : S.store.set("stays", S.store.newId("stays"), Object.assign(data, {createdBy:S.me, createdAt:Date.now()})), id ? "Changes saved." : `Added “${name}”.`);
+});
+
+/* Expense */
+let expKind = "expense";
+function openExp(e, pre){
+  pre = pre || {};
+  S.editing = e ? e.id : null; expKind = e && e.kind === "settlement" ? "settlement" : "expense";
+  const settle = expKind === "settlement";
+  $("exp-h").textContent = settle ? "Edit payback" : e ? "Edit expense" : "Add an expense";
+  $("e-save").textContent = e ? "Save changes" : "Add expense";
+  $("e-cur").textContent = currency();
+  $("e-title-wrap").hidden = settle; $("e-cat-wrap").hidden = settle; $("e-act-wrap").hidden = settle;
+  $("e-paid-l").firstChild.textContent = settle ? "Who paid back" : "Paid by";
+  $("e-title").value = e ? (e.title || "") : (pre.title || "");
+  $("e-amount").value = e ? String(e.amount) : (pre.amount ? String(Math.round(pre.amount * 100) / 100) : "");
+  $("e-date").value = e ? (e.date || "") : (pre.date || todayKey());
+  const ps = $("e-paid"); ps.replaceChildren(...memberIds().map(id => h("option", {value:id}, nameOf(id) + (isMe(id) ? " (you)" : ""))));
+  ps.value = e ? e.paidBy : S.me;
+  $("e-cat").value = e ? (EXPMAP[e.category] ? e.category : "other") : (pre.category || "other");
+  const refSel = $("e-act");
+  refSel.replaceChildren(h("option", {value:""}, "Not linked"),
+    stays().length ? h("optgroup", {label:"Stays"}, stays().map(s => h("option", {value:s.id}, s.name))) : null,
+    activities().length ? h("optgroup", {label:"Activities"}, activities().map(a => h("option", {value:a.id}, a.title))) : null);
+  refSel.value = e ? (e.refId || "") : (pre.refId || "");
+  $("e-notes").value = e && e.notes || "";
+  peoplePicker($("e-split"), settle ? "Paid back to" : "Split between", e ? (e.splitWith || []) : (pre.splitWith || memberIds()), splitNote);
+  byLine("e-by", e ? e.createdBy : S.me, !!e);
+  splitNote();
+  showErr("e-err", ""); open($("dlg-exp")); (settle ? $("e-amount") : $("e-title")).focus();
+}
+function splitNote(){
+  const fs = $("e-split"); let note = fs.querySelector(".split-note");
+  if (!note){ note = h("p", {class:"split-note"}); fs.append(note); }
+  const n = picked(fs).length, amt = Number($("e-amount").value);
+  note.textContent = n && amt > 0 ? (n === 1 ? `${money(amt)} for 1 person` : `${money(Math.round(amt / n * 100) / 100)} each, ${n} people`) : n ? `${n} ${n === 1 ? "person" : "people"}` : "Tick who this was for";
+}
+$("e-amount").addEventListener("input", splitNote);
+$("f-exp").addEventListener("submit", e => {
+  e.preventDefault();
+  const settle = expKind === "settlement";
+  const title = settle ? "Settle up" : $("e-title").value.trim();
+  const amount = Number($("e-amount").value);
+  const split = picked($("e-split")), paidBy = $("e-paid").value;
+  if (!title){ showErr("e-err", "Say what the expense was for."); $("e-title").focus(); return; }
+  if (!(amount > 0) || !isFinite(amount)){ showErr("e-err", "Enter an amount above zero, like 45 or 12.50."); $("e-amount").focus(); return; }
+  if (!paidBy || !S.members.has(paidBy)){ showErr("e-err", "Choose who paid."); return; }
+  if (!split.length){ showErr("e-err", settle ? "Choose who was paid back." : "Tick at least one person to split it with."); return; }
+  const date = $("e-date").value;
+  const data = {title, amount:Math.round(amount * 100) / 100, date:validKey(date) ? date : "", paidBy, splitWith:split,
+    category:settle ? "other" : $("e-cat").value, refId:settle ? "" : $("e-act").value, kind:expKind, notes:$("e-notes").value.trim(), updatedAt:Date.now()};
+  const id = S.editing;
+  $("dlg-exp").close();
+  commit(id ? S.store.update("expenses", id, data) : S.store.set("expenses", S.store.newId("expenses"), Object.assign(data, {createdBy:S.me, createdAt:Date.now()})), id ? "Changes saved." : `Added ${money(data.amount)} for “${title}”.`);
+});
+
+/* Trip */
+function openTrip(){
+  const t = S.trip || {};
+  $("t-name").value = t.name || ""; $("t-dest").value = t.destination || "";
+  $("t-start").value = validKey(t.start) ? t.start : ""; $("t-end").value = validKey(t.end) ? t.end : "";
+  $("t-cur").value = currency();
+  showErr("t-err", ""); open($("dlg-trip")); $("t-name").focus();
+}
+$("t-start").addEventListener("change", () => { const s = $("t-start").value, en = $("t-end").value; if (s && (!en || en < s)) $("t-end").value = s; });
+$("f-trip").addEventListener("submit", e => {
+  e.preventDefault();
+  const start = $("t-start").value, end = $("t-end").value;
+  if ((start && !end) || (!start && end)){ showErr("t-err", "Add both the first and last day, or leave both blank."); return; }
+  if (start && end && end < start){ showErr("t-err", "The last day is before the first day."); $("t-end").focus(); return; }
+  if (start && end && (pd(end) - pd(start)) / DAY > 90){ showErr("t-err", "The calendar covers trips up to 90 days. Shorten the dates."); return; }
+  $("dlg-trip").close();
+  commit(S.store.setTrip({name:$("t-name").value.trim(), destination:$("t-dest").value.trim(), start, end, currency:$("t-cur").value, updatedAt:Date.now()}), "Trip details saved.");
+});
+
+/* Who are you */
+function chooseMe(){ S.afterJoin = null; openWho(); }
+function openWho(){
+  const list = $("who-list"); list.replaceChildren();
+  memberIds().forEach(id => list.append(h("button", {type:"button", class:"who-item", onclick:() => becomeMe(id)}, avatar(id, "lg"), nameOf(id), isMe(id) ? h("span", {class:"cur"}, "Current") : null)));
+  if (!S.members.size) list.append(h("p", {class:"f-intro"}, "No one has joined yet. You're first."));
+  open($("dlg-who"));
+}
+function becomeMe(id){
+  S.me = id; if (!S.demo) store(`tripboard:${S.tripId}:me`, id);
+  $("dlg-who").close(); draw();
+  toast(`You're ${nameOf(id)} on this device.`);
+  const next = S.afterJoin; S.afterJoin = null; if (next) setTimeout(next, 60);
+}
+$("who-new").addEventListener("click", () => { $("dlg-who").close(); openMember({mode:"self"}); });
+
+/* Traveller add / edit */
+function openMember(opts){
+  S.memberEdit = opts;
+  const m = opts.mode === "edit" ? S.members.get(opts.id) : null;
+  const taken = new Set([...S.members.entries()].filter(([id]) => !(m && id === opts.id)).map(([, v]) => v && v.color));
+  const current = (m && safeColor(m.color)) || PALETTE.find(c => !taken.has(c)) || PALETTE[S.members.size % PALETTE.length];
+  $("mem-h").textContent = opts.mode === "self" ? "Join the trip" : opts.mode === "other" ? "Add a traveller" : (isMe(opts.id) ? "Your details" : "Edit traveller");
+  $("m-intro").textContent = opts.mode === "self" ? "Your name and colour show next to everything you add, so the group knows who suggested what."
+    : opts.mode === "other" ? "Add someone who hasn't opened the link yet, so you can split costs with them. They pick their name when they arrive."
+    : "Change how this person shows up for everyone.";
+  $("m-save").textContent = opts.mode === "edit" ? "Save" : opts.mode === "self" ? "Join" : "Add traveller";
+  $("m-name").value = m ? (m.name || "") : "";
+  const sw = $("m-colors"); sw.replaceChildren();
+  PALETTE.forEach((c, i) => sw.append(h("label", {class:"sw", title:taken.has(c) ? "Someone else uses this colour" : null},
+    h("input", {type:"radio", name:"m-color", id:"m-c" + i, value:c, "aria-label":`Colour ${i + 1}${taken.has(c) ? " (in use)" : ""}`, checked:c === current}), h("span", {c}))));
+  const del = $("m-del"); del.replaceChildren();
+  if (m){
+    const used = expenses().some(e => e.paidBy === opts.id || (e.splitWith || []).includes(opts.id));
+    del.append(used ? h("p", {class:"f-intro"}, `${nameOf(opts.id)} is part of some expenses, so they can't be removed. Edit or delete those expenses first.`)
+      : h("button", {type:"button", class:"lnk", style:"color:var(--danger);padding:0", onclick:ev => {
+          if (ev.currentTarget.dataset.armed){ $("dlg-member").close(); if (isMe(opts.id)){ S.me = null; store(`tripboard:${S.tripId}:me`, null); } commit(S.store.del("members", opts.id), "Traveller removed."); }
+          else { ev.currentTarget.dataset.armed = "1"; ev.currentTarget.textContent = `Tap again to remove ${nameOf(opts.id)}`; }
+        }}, "Remove from trip"));
+  }
+  showErr("m-err", ""); open($("dlg-member")); $("m-name").focus();
+}
+$("f-mem").addEventListener("submit", e => {
+  e.preventDefault();
+  const o = S.memberEdit || {mode:"self"};
+  const name = $("m-name").value.trim();
+  if (!name){ showErr("m-err", "Add the name the group knows them by."); $("m-name").focus(); return; }
+  const dupe = [...S.members.entries()].find(([id, m]) => id !== o.id && m && typeof m.name === "string" && m.name.trim().toLowerCase() === name.toLowerCase());
+  if (dupe && o.mode !== "edit"){
+    if (o.mode === "self"){ $("dlg-member").close(); becomeMe(dupe[0]); return; }
+    showErr("m-err", `${name} is already on the trip.`); return;
+  }
+  const pickedColor = $("f-mem").querySelector('input[name="m-color"]:checked');
+  const color = pickedColor ? pickedColor.value : PALETTE[0];
+  $("dlg-member").close();
+  if (o.mode === "edit"){ commit(S.store.update("members", o.id, {name, color}), "Saved."); return; }
+  const id = S.store.newId("members");
+  commit(S.store.set("members", id, {name, color, joinedAt:Date.now(), going:{}})).then(ok => {
+    if (!ok) return;
+    if (o.mode === "self") becomeMe(id); else toast(`Added ${name}.`);
+  });
+});
+
+/* Invite */
+function openInvite(){
+  const url = S.demo ? location.href.split("#")[0] : location.href;
+  $("inv-link").value = url; open($("dlg-invite"));
+  setTimeout(() => $("inv-link").select(), 50);
+}
+$("inv-copy").addEventListener("click", ev => {
+  const input = $("inv-link"); input.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(input.value).then(() => { ev.target.textContent = "Copied"; setTimeout(() => { ev.target.textContent = "Copy"; }, 1500); }, () => toast("Press Ctrl+C or long-press to copy the selected link."));
+  else toast("Press Ctrl+C or long-press to copy the selected link.");
+});
+
+boot();
+</script>
+</body>
+</html>
