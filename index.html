@@ -321,6 +321,9 @@ legend .lnk{margin-left:auto;font-weight:500;font-size:12.5px}
 .who-list{display:grid;gap:8px}
 .who-item{display:flex;align-items:center;gap:10px;padding:8px 12px 8px 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer;text-align:left;font-weight:600}
 .who-item:hover{border-color:var(--muted)}
+.check-who{display:flex;align-items:center;gap:12px;min-width:0}
+.check-who h2{font-family:var(--display);font-weight:800;font-size:28px;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+.f-by .lnk{font-size:13px;padding:0 2px}
 .who-item .cur{margin-left:auto;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .linkbox{display:flex;gap:8px}
 .linkbox input{flex:1;min-width:0;font:400 13.5px var(--mono);padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
@@ -458,6 +461,15 @@ legend .lnk{margin-left:auto;font-weight:500;font-size:12.5px}
     <p class="f-err" id="m-err" hidden></p>
     <div class="f-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="m-save">Save</button></div>
   </form>
+</dialog>
+
+<!-- Quick identity check before changes -->
+<dialog id="dlg-check" aria-labelledby="chk-h">
+  <div class="form">
+    <div class="f-head"><div class="check-who" id="chk-who"></div><button type="button" class="x" data-close aria-label="Close">&times;</button></div>
+    <p class="f-intro">Whatever you add, edit or delete shows under this name. If you're on someone else's phone or laptop, switch to yourself first.</p>
+    <div class="f-actions"><button type="button" class="btn" id="chk-switch">Switch person</button><button type="button" class="btn primary" id="chk-yes">Yes, that's me</button></div>
+  </div>
 </dialog>
 
 <!-- Invite -->
@@ -859,7 +871,22 @@ function renderBar(){
   const add = {plan:["Add activity", () => needMe(() => openAct(null, S.day || ""))], stays:["Add stay", () => needMe(() => openStay(null))], money:["Add expense", () => needMe(() => openExp(null))]}[S.tab];
   el.append(h("button", {type:"button", class:"btn primary", onclick:add[1]}, icon("plus"), add[0]));
 }
-function needMe(fn){ if (S.me) return fn(); S.afterJoin = fn; if (S.members.size) openWho(); else openMember({mode:"self"}); }
+// Before any change, make sure the right person is selected on this device.
+// Asks once per browser session, and again after 30 minutes without changes.
+const CHECK_MS = 30 * 60 * 1000;
+const checkKey = () => `tripboard:${S.tripId}:checked`;
+function confirmedRecently(){ let t = 0; try { t = Number(sessionStorage.getItem(checkKey())) || 0; } catch(e){} t = Math.max(t, S.checkedAt || 0); return Date.now() - t < CHECK_MS; }
+function touchCheck(){ S.checkedAt = Date.now(); try { sessionStorage.setItem(checkKey(), String(S.checkedAt)); } catch(e){} }
+function needMe(fn){
+  if (!S.me){ S.afterJoin = fn; if (S.members.size) openWho(); else openMember({mode:"self"}); return; }
+  if (confirmedRecently()){ touchCheck(); return fn(); }
+  S.pendingCheck = fn; openCheck();
+}
+function openCheck(){
+  $("chk-who").replaceChildren(avatar(S.me, "lg"), h("h2", {id:"chk-h"}, `Are you ${nameOf(S.me)}?`));
+  $("chk-yes").textContent = `Yes, I'm ${nameOf(S.me)}`;
+  open($("dlg-check"));
+}
 
 /* ---------- pre-trip views ---------- */
 function viewSetup(){
@@ -1029,7 +1056,7 @@ function actTicket(a){
         h("button", {type:"button", class:"btn small inbtn", "aria-pressed":String(mine), onclick:() => needMe(() => commit(S.store.setGoing(S.me, a.id, !iAmIn(a.id))))}, mine ? [icon("check"), "I'm in"] : "I'm in"),
         typeof a.cost === "number" && a.cost > 0 && !pays.length ? h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openExp(null, prefillFromAct(a)))}, "Log payment") : null,
         h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openAct(a))}, "Edit"),
-        h("button", {type:"button", class:"btn small quiet", onclick:() => { S.confirm = a.id; draw(); }}, "Delete"))
+        h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => { S.confirm = a.id; draw(); })}, "Delete"))
     ];
   }
   return h("article", {class:"ticket", c:colorOf(a.createdBy), "aria-label":a.title},
@@ -1093,7 +1120,7 @@ function stayTicket(s){
     h("span", {class:"t-actions"},
       h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openExp(null, {title:s.name, category:"stay", refId:s.id, splitWith:who.length ? who : memberIds(), date:todayKey()}))}, "Log payment"),
       h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openStay(s))}, "Edit"),
-      h("button", {type:"button", class:"btn small quiet", onclick:() => { S.confirm = s.id; draw(); }}, "Delete"))
+      h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => { S.confirm = s.id; draw(); })}, "Delete"))
   ];
   return h("article", {class:"ticket", c:colorOf(s.createdBy), "aria-label":s.name},
     h("div", {class:"stub"},
@@ -1179,19 +1206,24 @@ function expRow(e){
   if (S.confirm === e.id) row.append(confirmRow(settlement ? "Delete this payback?" : `Delete “${e.title}”?`, () => { S.confirm = null; commit(S.store.del("expenses", e.id), "Expense deleted."); }));
   else row.append(h("div", {class:"acts"},
     h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => openExp(e))}, "Edit"),
-    h("button", {type:"button", class:"btn small quiet", onclick:() => { S.confirm = e.id; draw(); }}, "Delete")));
+    h("button", {type:"button", class:"btn small quiet", onclick:() => needMe(() => { S.confirm = e.id; draw(); })}, "Delete")));
   return row;
 }
 
 /* ---------- dialogs ---------- */
-const dlgs = ["dlg-act","dlg-stay","dlg-exp","dlg-trip","dlg-who","dlg-member","dlg-invite"].map($);
+const dlgs = ["dlg-act","dlg-stay","dlg-exp","dlg-trip","dlg-who","dlg-member","dlg-invite","dlg-check"].map($);
 for (const d of dlgs) d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
 function open(d){ try { d.showModal(); } catch(e){ d.setAttribute("open", ""); } }
 function showErr(id, msg){ const el = $(id); el.textContent = msg || ""; el.hidden = !msg; }
 $("a-cat").append(...CATS.map(([v, l]) => h("option", {value:v}, l)));
 $("e-cat").append(...EXP_CATS.map(([v, l]) => h("option", {value:v}, l)));
 $("t-cur").append(...CURRENCIES.map(c => h("option", {value:c}, c)));
-function byLine(elId, id, editing){ const by = $(elId); by.replaceChildren(); if (editing) by.append(avatar(id), `Added by ${nameOrYou(id)}`); else by.append(avatar(S.me), `Adding as ${nameOf(S.me)}`); }
+function byLine(elId, id, editing){
+  S.byCtx = {elId, id, editing};
+  const by = $(elId); by.replaceChildren();
+  if (editing) by.append(avatar(id), `Added by ${nameOrYou(id)}`);
+  else by.append(avatar(S.me), `Adding as ${nameOf(S.me)}`, h("button", {type:"button", class:"lnk", onclick:chooseMe}, "Not you?"));
+}
 function peoplePicker(fs, legend, selected, onChange){
   fs.replaceChildren();
   const ids = memberIds();
@@ -1350,10 +1382,15 @@ function openWho(){
 }
 function becomeMe(id){
   S.me = id; if (!S.demo) store(`tripboard:${S.tripId}:me`, id);
+  touchCheck();
   $("dlg-who").close(); draw();
+  const c = S.byCtx; if (c && !c.editing && $(c.elId).closest("dialog").open) byLine(c.elId, S.me, false);
   toast(`You're ${nameOf(id)} on this device.`);
   const next = S.afterJoin; S.afterJoin = null; if (next) setTimeout(next, 60);
 }
+$("chk-yes").addEventListener("click", () => { const fn = S.pendingCheck; S.pendingCheck = null; touchCheck(); $("dlg-check").close(); if (fn) setTimeout(fn, 60); });
+$("chk-switch").addEventListener("click", () => { const fn = S.pendingCheck; S.pendingCheck = null; $("dlg-check").close(); S.afterJoin = fn; openWho(); });
+$("dlg-check").addEventListener("close", () => { S.pendingCheck = null; });
 $("who-new").addEventListener("click", () => { $("dlg-who").close(); openMember({mode:"self"}); });
 
 /* Traveller add / edit */
